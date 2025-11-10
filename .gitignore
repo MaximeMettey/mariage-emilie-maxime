@@ -2,5 +2,6 @@ node_modules/
 .env
 media/*
 !media/.gitkeep
+.thumbnails/
 *.log
 .DS_Store

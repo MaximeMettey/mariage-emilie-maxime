@@ -7,11 +7,14 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const archiver = require('archiver');
 const exifParser = require('exif-parser');
+const sharp = require('sharp');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
+const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
 
 // Middleware
 app.use(express.json());
@@ -39,6 +42,7 @@ const requireAuth = (req, res, next) => {
 // Servir les fichiers statiques
 app.use(express.static('public'));
 app.use('/media', requireAuth, express.static(MEDIA_DIR));
+app.use('/thumbnails', requireAuth, express.static(THUMBNAILS_DIR));
 
 // Routes d'authentification
 app.post('/api/login', (req, res) => {
@@ -85,6 +89,52 @@ async function getVideoDate(filePath) {
   return stats.mtime;
 }
 
+// Fonction pour générer un hash du chemin du fichier
+function getFileHash(filePath) {
+  return crypto.createHash('md5').update(filePath).digest('hex');
+}
+
+// Fonction pour générer ou récupérer un thumbnail
+async function getThumbnail(filePath, folderName, fileName) {
+  try {
+    // Créer le dossier des thumbnails s'il n'existe pas
+    if (!fsSync.existsSync(THUMBNAILS_DIR)) {
+      await fs.mkdir(THUMBNAILS_DIR, { recursive: true });
+    }
+
+    // Générer un nom unique pour le thumbnail basé sur le chemin
+    const fileHash = getFileHash(`${folderName}/${fileName}`);
+    const thumbnailName = `${fileHash}.webp`;
+    const thumbnailPath = path.join(THUMBNAILS_DIR, thumbnailName);
+
+    // Vérifier si le thumbnail existe déjà
+    if (fsSync.existsSync(thumbnailPath)) {
+      // Vérifier que le thumbnail n'est pas plus vieux que l'original
+      const originalStats = await fs.stat(filePath);
+      const thumbnailStats = await fs.stat(thumbnailPath);
+
+      if (thumbnailStats.mtime >= originalStats.mtime) {
+        return `/thumbnails/${thumbnailName}`;
+      }
+    }
+
+    // Générer le thumbnail
+    await sharp(filePath)
+      .resize(400, 400, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .webp({ quality: 80 })
+      .toFile(thumbnailPath);
+
+    return `/thumbnails/${thumbnailName}`;
+  } catch (error) {
+    console.error(`Erreur lors de la génération du thumbnail pour ${fileName}:`, error);
+    // En cas d'erreur, retourner le chemin original
+    return null;
+  }
+}
+
 // Fonction pour scanner le dossier media
 async function scanMediaDirectory() {
   const folders = [];
@@ -123,9 +173,16 @@ async function scanMediaDirectory() {
               date = await getVideoDate(filePath);
             }
 
+            // Générer le thumbnail (uniquement pour les images pour l'instant)
+            let thumbnailPath = null;
+            if (isImage) {
+              thumbnailPath = await getThumbnail(filePath, item.name, file);
+            }
+
             mediaFiles.push({
               name: file,
               path: `/media/${item.name}/${file}`,
+              thumbnail: thumbnailPath || `/media/${item.name}/${file}`,
               type: isImage ? 'image' : 'video',
               size: stats.size,
               date: date.toISOString()

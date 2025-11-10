@@ -135,14 +135,14 @@ function renderGallery(folders) {
 
             if (file.type === 'image') {
                 const img = document.createElement('img');
-                img.src = file.path;
+                img.src = file.thumbnail || file.path; // Utiliser le thumbnail si disponible
                 img.alt = file.name;
                 img.loading = 'lazy';
                 mediaItem.appendChild(img);
             } else {
                 const video = document.createElement('video');
                 video.src = file.path;
-                video.preload = 'metadata';
+                video.preload = 'none'; // Ne pas précharger les vidéos
                 mediaItem.appendChild(video);
             }
 
@@ -216,6 +216,11 @@ function showMedia(index) {
         lightboxVideo.src = media.path;
         lightboxVideo.style.display = 'block';
         lightboxVideo.load();
+
+        // Lecture automatique des vidéos
+        lightboxVideo.play().catch(error => {
+            console.log('Autoplay non autorisé:', error);
+        });
 
         // Masquer les contrôles de zoom pour les vidéos
         lightboxZoomControls.style.display = 'none';
