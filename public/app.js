@@ -80,7 +80,47 @@ function renderGallery(folders) {
     foldersContainer.innerHTML = '';
     allMedia = [];
 
-    folders.forEach((folder, folderIndex) => {
+    // Séparer les dossiers par catégorie
+    const professionalFolders = folders.filter(f => f.category === 'professional');
+    const guestFolders = folders.filter(f => f.category === 'guest');
+
+    // Créer la section des photos professionnelles
+    if (professionalFolders.length > 0) {
+        const categorySection = document.createElement('div');
+        categorySection.className = 'category-section';
+
+        const categoryTitle = document.createElement('h2');
+        categoryTitle.className = 'category-title';
+        categoryTitle.textContent = '📸 Photos Professionnelles';
+        categorySection.appendChild(categoryTitle);
+
+        professionalFolders.forEach((folder, folderIndex) => {
+            categorySection.appendChild(createFolderSection(folder, folderIndex));
+        });
+
+        foldersContainer.appendChild(categorySection);
+    }
+
+    // Créer la section des photos des invités
+    if (guestFolders.length > 0) {
+        const categorySection = document.createElement('div');
+        categorySection.className = 'category-section';
+
+        const categoryTitle = document.createElement('h2');
+        categoryTitle.className = 'category-title';
+        categoryTitle.textContent = '📱 Photos des Invités';
+        categorySection.appendChild(categoryTitle);
+
+        guestFolders.forEach((folder, folderIndex) => {
+            categorySection.appendChild(createFolderSection(folder, professionalFolders.length + folderIndex));
+        });
+
+        foldersContainer.appendChild(categorySection);
+    }
+}
+
+// Créer une section de dossier
+function createFolderSection(folder, folderIndex) {
         // Créer la section du dossier
         const folderSection = document.createElement('div');
         folderSection.className = 'folder-section';
@@ -151,8 +191,8 @@ function renderGallery(folders) {
 
         folderSection.appendChild(folderHeader);
         folderSection.appendChild(mediaGrid);
-        foldersContainer.appendChild(folderSection);
-    });
+
+        return folderSection;
 }
 
 // Ouvrir le lightbox

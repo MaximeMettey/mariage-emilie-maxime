@@ -94,7 +94,7 @@ function getFileHash(filePath) {
   return crypto.createHash('md5').update(filePath).digest('hex');
 }
 
-// Fonction pour générer ou récupérer un thumbnail
+// Fonction pour générer ou récupérer un thumbnail d'image
 async function getThumbnail(filePath, folderName, fileName) {
   try {
     // Créer le dossier des thumbnails s'il n'existe pas
@@ -131,6 +131,51 @@ async function getThumbnail(filePath, folderName, fileName) {
   } catch (error) {
     console.error(`Erreur lors de la génération du thumbnail pour ${fileName}:`, error);
     // En cas d'erreur, retourner le chemin original
+    return null;
+  }
+}
+
+// Fonction pour générer un thumbnail de vidéo (placeholder élégant)
+async function getVideoThumbnail(folderName, fileName) {
+  try {
+    // Créer le dossier des thumbnails s'il n'existe pas
+    if (!fsSync.existsSync(THUMBNAILS_DIR)) {
+      await fs.mkdir(THUMBNAILS_DIR, { recursive: true });
+    }
+
+    // Générer un nom unique pour le thumbnail basé sur le chemin
+    const fileHash = getFileHash(`${folderName}/${fileName}`);
+    const thumbnailName = `${fileHash}.webp`;
+    const thumbnailPath = path.join(THUMBNAILS_DIR, thumbnailName);
+
+    // Vérifier si le thumbnail existe déjà
+    if (fsSync.existsSync(thumbnailPath)) {
+      return `/thumbnails/${thumbnailName}`;
+    }
+
+    // Créer un SVG avec icône play
+    const svgPlayIcon = `
+      <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#8b1538;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#6b1029;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <rect width="400" height="400" fill="url(#bgGradient)"/>
+        <circle cx="200" cy="200" r="60" fill="#d4af37" opacity="0.9"/>
+        <polygon points="185,175 185,225 230,200" fill="#0a0a0a"/>
+      </svg>
+    `;
+
+    // Générer le thumbnail à partir du SVG
+    await sharp(Buffer.from(svgPlayIcon))
+      .webp({ quality: 80 })
+      .toFile(thumbnailPath);
+
+    return `/thumbnails/${thumbnailName}`;
+  } catch (error) {
+    console.error(`Erreur lors de la génération du thumbnail vidéo pour ${fileName}:`, error);
     return null;
   }
 }
@@ -173,10 +218,12 @@ async function scanMediaDirectory() {
               date = await getVideoDate(filePath);
             }
 
-            // Générer le thumbnail (uniquement pour les images pour l'instant)
+            // Générer le thumbnail pour images et vidéos
             let thumbnailPath = null;
             if (isImage) {
               thumbnailPath = await getThumbnail(filePath, item.name, file);
+            } else if (isVideo) {
+              thumbnailPath = await getVideoThumbnail(item.name, file);
             }
 
             mediaFiles.push({
@@ -194,10 +241,20 @@ async function scanMediaDirectory() {
         mediaFiles.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         if (mediaFiles.length > 0) {
+          // Déterminer la catégorie en fonction du nom du dossier
+          const folderNameLower = item.name.toLowerCase();
+          const isProfessional =
+            folderNameLower.includes('pro') ||
+            folderNameLower.includes('photographe') ||
+            folderNameLower.includes('photog') ||
+            folderNameLower.includes('darkcube') ||
+            folderNameLower.includes('professionnel');
+
           folders.push({
             name: item.name,
             files: mediaFiles,
-            count: mediaFiles.length
+            count: mediaFiles.length,
+            category: isProfessional ? 'professional' : 'guest'
           });
         }
       }
