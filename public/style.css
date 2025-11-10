@@ -195,9 +195,6 @@ body {
     background: rgba(26, 26, 26, 0.95);
     border-bottom: 1px solid rgba(212, 175, 55, 0.2);
     padding: 20px 32px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
     backdrop-filter: blur(10px);
     box-shadow: var(--shadow-md);
 }
@@ -1101,9 +1098,6 @@ body {
     background: rgba(26, 26, 26, 0.8);
     border-bottom: 1px solid rgba(139, 21, 56, 0.3);
     padding: 20px 24px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
     backdrop-filter: blur(10px);
 }
 
