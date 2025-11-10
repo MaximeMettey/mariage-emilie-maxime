@@ -23,6 +23,9 @@
         </button>
         <div class="music-info">
             <span id="currentTrack">Chargement...</span>
+            <div class="music-progress">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
         </div>
         <button id="volumeToggle" class="volume-toggle" title="Son">
             <svg id="volumeOnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,7 +90,7 @@
                             </svg>
                             Laisser un avis
                         </a>
-                        <a href="https://www.chateau-de-villersexel.fr" target="_blank" rel="noopener" class="provider-link">
+                        <a href="https://www.villersexel.com/" target="_blank" rel="noopener" class="provider-link">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <line x1="2" y1="12" x2="22" y2="12"></line>
@@ -141,6 +144,14 @@
                             </svg>
                             Laisser un avis
                         </a>
+                        <a href="https://enjoyproduction.fr/" target="_blank" rel="noopener" class="provider-link">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                            Site web
+                        </a>
                     </div>
                 </div>
             </div>
@@ -160,20 +171,28 @@
                             </svg>
                             Laisser un avis
                         </a>
+                        <a href="https://www.culturefoodtraiteur.com/" target="_blank" rel="noopener" class="provider-link">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                            Site web
+                        </a>
                     </div>
                 </div>
             </div>
 
             <div class="provider-card-large">
                 <div class="provider-logo">
-                    <img src="/images/providers/clauday.jpg" alt="Clauday Evenements" onerror="this.style.display='none'">
+                    <img src="/images/providers/aline-gwen.jpg" alt="Aline et Gwen" onerror="this.style.display='none'">
                 </div>
                 <div class="provider-info">
-                    <h3 class="provider-name">Décoration</h3>
-                    <p class="provider-company">Clauday Evenements</p>
-                    <p class="provider-description">Une décoration florale élégante et raffinée qui a sublimé notre lieu de réception.</p>
+                    <h3 class="provider-name">Service</h3>
+                    <p class="provider-company">Aline et Gwen</p>
+                    <p class="provider-description">Un service attentionné et discret qui a veillé au bon déroulement de notre journée.</p>
                     <div class="provider-links">
-                        <a href="https://www.google.com/search?q=Clauday+Evenements" target="_blank" rel="noopener" class="provider-link provider-link-review">
+                        <a href="https://www.google.com/search?q=Aline+et+Gwen+service+mariage" target="_blank" rel="noopener" class="provider-link provider-link-review">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
@@ -185,11 +204,92 @@
 
             <div class="provider-card-large">
                 <div class="provider-logo">
+                    <img src="/images/providers/clauday.jpg" alt="Clauday Evenements" onerror="this.style.display='none'">
+                </div>
+                <div class="provider-info">
+                    <h3 class="provider-name">Location vaisselle et mobilier</h3>
+                    <p class="provider-company">Clauday Evenements</p>
+                    <p class="provider-description">Une sélection élégante de vaisselle et mobilier qui a sublimé notre réception.</p>
+                    <div class="provider-links">
+                        <a href="https://www.google.com/search?q=Clauday+Evenements" target="_blank" rel="noopener" class="provider-link provider-link-review">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            Laisser un avis
+                        </a>
+                        <a href="https://www.clauday-evenements.net/" target="_blank" rel="noopener" class="provider-link">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                            Site web
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="provider-card-large">
+                <div class="provider-logo">
+                    <img src="/images/providers/ipek-pastry.jpg" alt="Ipek Pastry" onerror="this.style.display='none'">
+                </div>
+                <div class="provider-info">
+                    <h3 class="provider-name">Réalisation du dessert</h3>
+                    <p class="provider-company">Ipek Pastry</p>
+                    <p class="provider-description">Une pièce montée délicieuse et magnifique qui a émerveillé nos invités.</p>
+                    <div class="provider-links">
+                        <a href="https://www.google.com/search?q=Ipek+Pastry" target="_blank" rel="noopener" class="provider-link provider-link-review">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            Laisser un avis
+                        </a>
+                        <a href="https://www.instagram.com/ipekpastry/" target="_blank" rel="noopener" class="provider-link">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                            </svg>
+                            Instagram
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="provider-card-large">
+                <div class="provider-logo">
+                    <img src="/images/providers/fleurs-du-midi.jpg" alt="Fleurs du Midi" onerror="this.style.display='none'">
+                </div>
+                <div class="provider-info">
+                    <h3 class="provider-name">Fleuriste</h3>
+                    <p class="provider-company">Fleurs du Midi</p>
+                    <p class="provider-description">Des compositions florales élégantes et raffinées qui ont embelli notre célébration.</p>
+                    <div class="provider-links">
+                        <a href="https://www.google.com/search?q=Fleurs+du+Midi+Belfort" target="_blank" rel="noopener" class="provider-link provider-link-review">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            Laisser un avis
+                        </a>
+                        <a href="https://fleuristes-et-fleurs.com/fleuriste/fleurs-du-midi-belfort-90000" target="_blank" rel="noopener" class="provider-link">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                            Site web
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="provider-card-large">
+                <div class="provider-logo">
                     <img src="/images/providers/id-mariage.jpg" alt="I.D Mariage" onerror="this.style.display='none'">
                 </div>
                 <div class="provider-info">
                     <h3 class="provider-name">Costume</h3>
-                    <p class="provider-company">I.D Mariage - Belfort</p>
+                    <p class="provider-company">I.D. Mariage - Belfort</p>
                     <p class="provider-description">Un accompagnement personnalisé pour choisir le costume parfait pour ce jour unique.</p>
                     <div class="provider-links">
                         <a href="https://www.google.com/search?q=I.D+Mariage+Belfort" target="_blank" rel="noopener" class="provider-link provider-link-review">
@@ -197,6 +297,14 @@
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
                             Laisser un avis
+                        </a>
+                        <a href="https://une-id-mariage90.fr/" target="_blank" rel="noopener" class="provider-link">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                            Site web
                         </a>
                     </div>
                 </div>
