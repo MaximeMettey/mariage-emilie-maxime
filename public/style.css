@@ -1291,8 +1291,8 @@ body {
 
 .menu-toggle {
     display: none;
-    flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
     padding: 8px;
@@ -1300,24 +1300,18 @@ body {
     z-index: 1001;
 }
 
-.burger-line {
-    width: 28px;
-    height: 3px;
-    background: var(--color-gold);
-    border-radius: 2px;
-    transition: all 0.3s ease;
+.burger-icon,
+.close-icon {
+    stroke: var(--color-gold);
+    transition: opacity 0.2s ease;
 }
 
-.menu-toggle.open .burger-line:nth-child(1) {
-    transform: rotate(45deg) translate(8px, 8px);
+.menu-toggle.open .burger-icon {
+    display: none;
 }
 
-.menu-toggle.open .burger-line:nth-child(2) {
-    opacity: 0;
-}
-
-.menu-toggle.open .burger-line:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
+.menu-toggle.open .close-icon {
+    display: block !important;
 }
 
 .nav-menu {
