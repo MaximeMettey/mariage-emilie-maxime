@@ -394,7 +394,13 @@ app.get('/api/download-folder/:folderName', requireAuth, async (req, res) => {
 
 // Route catch-all pour le routage SPA (doit être après toutes les autres routes)
 // Cette route permet de rafraîchir (F5) n'importe quelle page de la SPA
-app.get('*', (req, res) => {
+// Ignore les requêtes vers des fichiers statiques (avec extension)
+app.get('*', (req, res, next) => {
+  // Si la requête a une extension de fichier, on laisse passer (404 normal)
+  if (path.extname(req.path)) {
+    return next();
+  }
+  // Sinon, on sert index.html pour le routage SPA
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
