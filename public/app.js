@@ -179,6 +179,22 @@ function createFolderSection(folder, folderIndex) {
             mediaItem.appendChild(videoThumb);
         }
 
+        // Bouton de téléchargement pour chaque média
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'media-download-btn';
+        downloadBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        `;
+        downloadBtn.onclick = (e) => {
+            e.stopPropagation(); // Empêcher l'ouverture de la lightbox
+            downloadSingleMedia(file);
+        };
+        mediaItem.appendChild(downloadBtn);
+
         mediaGrid.appendChild(mediaItem);
     });
 
@@ -371,6 +387,16 @@ async function downloadFolder(folderName) {
         console.error('Erreur lors du téléchargement du dossier:', error);
         alert('Erreur lors du téléchargement. Veuillez réessayer.');
     }
+}
+
+// Télécharger un média individuel
+function downloadSingleMedia(media) {
+    const link = document.createElement('a');
+    link.href = media.path;
+    link.download = media.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // ===== Fonctions de zoom =====
