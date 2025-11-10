@@ -17,6 +17,7 @@ const lightboxImage = document.getElementById('lightboxImage');
 const lightboxVideo = document.getElementById('lightboxVideo');
 const lightboxInfo = document.getElementById('lightboxInfo');
 const closeLightboxBtn = document.getElementById('closeLightbox');
+const downloadMediaBtn = document.getElementById('downloadMedia');
 const prevMediaBtn = document.getElementById('prevMedia');
 const nextMediaBtn = document.getElementById('nextMedia');
 const lightboxZoomControls = document.getElementById('lightboxZoomControls');
@@ -269,6 +270,17 @@ function navigateLightbox(direction) {
     }
 }
 
+// Télécharger le média courant
+function downloadCurrentMedia() {
+    if (currentMediaIndex >= 0 && currentMediaIndex < allMedia.length) {
+        const media = allMedia[currentMediaIndex];
+        const link = document.createElement('a');
+        link.href = media.path;
+        link.download = media.name;
+        link.click();
+    }
+}
+
 // Télécharger tous les médias
 async function downloadAll() {
     const downloadAllBtn = document.getElementById('downloadAllBtn');
@@ -394,6 +406,7 @@ document.addEventListener('mouseup', () => {
 
 // Gestion des événements du lightbox
 if (closeLightboxBtn) closeLightboxBtn.addEventListener('click', closeLightbox);
+if (downloadMediaBtn) downloadMediaBtn.addEventListener('click', downloadCurrentMedia);
 if (prevMediaBtn) prevMediaBtn.addEventListener('click', () => navigateLightbox(-1));
 if (nextMediaBtn) nextMediaBtn.addEventListener('click', () => navigateLightbox(1));
 if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
