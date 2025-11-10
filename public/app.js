@@ -11,6 +11,9 @@ let startY = 0;
 let scrollLeft = 0;
 let scrollTop = 0;
 
+// État de la musique pour gestion vidéo
+let musicWasPlaying = false;
+
 // Éléments du DOM (lightbox global)
 const lightbox = document.getElementById('lightbox');
 const lightboxImage = document.getElementById('lightboxImage');
@@ -206,6 +209,22 @@ function closeLightbox() {
         lightboxVideo.src = '';
     }
 
+    // Reprendre la musique si elle était en cours avant la vidéo
+    if (musicWasPlaying) {
+        const audioPlayer = document.getElementById('audioPlayer');
+        if (audioPlayer) {
+            audioPlayer.play().then(() => {
+                const playIcon = document.getElementById('playIcon');
+                const pauseIcon = document.getElementById('pauseIcon');
+                if (playIcon && pauseIcon) {
+                    playIcon.style.display = 'none';
+                    pauseIcon.style.display = 'block';
+                }
+            }).catch(() => {});
+        }
+        musicWasPlaying = false;
+    }
+
     // Réinitialiser le zoom
     resetZoom();
 }
@@ -231,6 +250,22 @@ function showMedia(index) {
 
     // Afficher le média approprié
     if (media.type === 'image') {
+        // Si on passe d'une vidéo à une image, reprendre la musique si nécessaire
+        if (lightboxVideo.style.display !== 'none' && musicWasPlaying) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (audioPlayer) {
+                audioPlayer.play().then(() => {
+                    const playIcon = document.getElementById('playIcon');
+                    const pauseIcon = document.getElementById('pauseIcon');
+                    if (playIcon && pauseIcon) {
+                        playIcon.style.display = 'none';
+                        pauseIcon.style.display = 'block';
+                    }
+                }).catch(() => {});
+            }
+            musicWasPlaying = false;
+        }
+
         lightboxVideo.style.display = 'none';
         lightboxVideo.pause();
         lightboxVideo.src = '';
@@ -412,6 +447,65 @@ if (nextMediaBtn) nextMediaBtn.addEventListener('click', () => navigateLightbox(
 if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
 if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
 if (resetZoomBtn) resetZoomBtn.addEventListener('click', resetZoom);
+
+// Gestion de la musique pendant lecture vidéo
+if (lightboxVideo) {
+    // Quand la vidéo commence à jouer
+    lightboxVideo.addEventListener('play', () => {
+        const audioPlayer = document.getElementById('audioPlayer');
+        if (audioPlayer && !audioPlayer.paused) {
+            // Mémoriser que la musique était en cours
+            musicWasPlaying = true;
+            // Mettre en pause la musique
+            audioPlayer.pause();
+            // Mettre à jour l'icône du lecteur
+            const playIcon = document.getElementById('playIcon');
+            const pauseIcon = document.getElementById('pauseIcon');
+            if (playIcon && pauseIcon) {
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+            }
+        }
+    });
+
+    // Quand la vidéo se met en pause
+    lightboxVideo.addEventListener('pause', () => {
+        if (musicWasPlaying) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (audioPlayer) {
+                audioPlayer.play().then(() => {
+                    // Mettre à jour l'icône du lecteur
+                    const playIcon = document.getElementById('playIcon');
+                    const pauseIcon = document.getElementById('pauseIcon');
+                    if (playIcon && pauseIcon) {
+                        playIcon.style.display = 'none';
+                        pauseIcon.style.display = 'block';
+                    }
+                });
+            }
+            musicWasPlaying = false;
+        }
+    });
+
+    // Quand la vidéo se termine
+    lightboxVideo.addEventListener('ended', () => {
+        if (musicWasPlaying) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (audioPlayer) {
+                audioPlayer.play().then(() => {
+                    // Mettre à jour l'icône du lecteur
+                    const playIcon = document.getElementById('playIcon');
+                    const pauseIcon = document.getElementById('pauseIcon');
+                    if (playIcon && pauseIcon) {
+                        playIcon.style.display = 'none';
+                        pauseIcon.style.display = 'block';
+                    }
+                });
+            }
+            musicWasPlaying = false;
+        }
+    });
+}
 
 // Navigation au clavier
 document.addEventListener('keydown', (e) => {
