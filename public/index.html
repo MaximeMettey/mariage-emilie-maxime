@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mariage Émilie & Maxime - 8 Novembre 2025</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="wedding-header">
+                <h1 class="couple-names">Émilie & Maxime</h1>
+                <div class="wedding-date">8 Novembre 2025</div>
+                <div class="wedding-location">Château de Villersexel</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="accessCode">Code d'accès</label>
+                    <input
+                        type="password"
+                        id="accessCode"
+                        name="accessCode"
+                        placeholder="Entrez le code d'accès"
+                        required
+                        autocomplete="off">
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    Accéder à la galerie
+                </button>
+
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Vérifier si déjà authentifié
+        fetch('/api/check-auth')
+            .then(res => res.json())
+            .then(data => {
+                if (data.authenticated) {
+                    window.location.href = '/gallery.html';
+                }
+            });
+
+        // Gérer la soumission du formulaire
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const code = document.getElementById('accessCode').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+
+            // Désactiver le bouton pendant la requête
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Vérification...';
+            errorMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    window.location.href = '/gallery.html';
+                } else {
+                    errorMessage.textContent = data.error || 'Code d\'accès incorrect';
+                    errorMessage.style.display = 'block';
+                    document.getElementById('accessCode').value = '';
+                    document.getElementById('accessCode').focus();
+                }
+            } catch (error) {
+                errorMessage.textContent = 'Erreur de connexion. Veuillez réessayer.';
+                errorMessage.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Accéder à la galerie';
+            }
+        });
+    </script>
+</body>
+</html>

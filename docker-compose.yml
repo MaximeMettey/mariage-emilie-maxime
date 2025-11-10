@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  galerie-mariage:
+    build: .
+    container_name: galerie-mariage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ACCESS_CODE=${ACCESS_CODE:-mariage2025}
+      - SESSION_SECRET=${SESSION_SECRET:-changez-moi-secret}
+    volumes:
+      - ./media:/app/media:rw
+    networks:
+      - galerie-network
+
+networks:
+  galerie-network:
+    driver: bridge

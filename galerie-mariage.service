@@ -1,0 +1,24 @@
+[Unit]
+Description=Galerie Photo Mariage Emilie et Maxime
+After=network.target
+
+[Service]
+Type=simple
+User=galerie-mariage
+WorkingDirectory=/var/www/galerie-mariage
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Sécurité
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/galerie-mariage/media
+
+[Install]
+WantedBy=multi-user.target
