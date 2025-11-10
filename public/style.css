@@ -538,6 +538,18 @@ body {
     align-items: center;
     justify-content: center;
     padding: 80px 100px 100px;
+    overflow: auto;
+    position: relative;
+}
+
+.lightbox-media-container.zoomed {
+    cursor: grab;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.lightbox-media-container.zoomed:active {
+    cursor: grabbing;
 }
 
 .lightbox-image,
@@ -547,6 +559,22 @@ body {
     object-fit: contain;
     border-radius: 8px;
     box-shadow: var(--shadow-lg), var(--shadow-gold);
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+}
+
+.lightbox-image.zoomable {
+    cursor: zoom-in;
+}
+
+.lightbox-image.zoomed {
+    max-width: none;
+    max-height: none;
+    cursor: grab;
+}
+
+.lightbox-image.zoomed:active {
+    cursor: grabbing;
 }
 
 .lightbox-toolbar {
@@ -569,6 +597,20 @@ body {
     color: var(--color-gold);
     font-size: 0.95rem;
     font-weight: 500;
+}
+
+.lightbox-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.zoom-level {
+    color: var(--color-gold);
+    font-size: 0.9rem;
+    font-weight: 500;
+    min-width: 50px;
+    text-align: center;
 }
 
 /* Responsive */

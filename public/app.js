@@ -3,6 +3,14 @@ let allMedia = [];
 let currentMediaIndex = 0;
 let isLightboxOpen = false;
 
+// État du zoom
+let zoomLevel = 1;
+let isPanning = false;
+let startX = 0;
+let startY = 0;
+let scrollLeft = 0;
+let scrollTop = 0;
+
 // Éléments du DOM
 const loadingSpinner = document.getElementById('loadingSpinner');
 const galleryContent = document.getElementById('galleryContent');
@@ -18,6 +26,12 @@ const lightboxNext = document.getElementById('lightboxNext');
 const lightboxDownload = document.getElementById('lightboxDownload');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
 const logoutBtn = document.getElementById('logoutBtn');
+const lightboxMediaContainer = document.querySelector('.lightbox-media-container');
+const lightboxZoomControls = document.getElementById('lightboxZoomControls');
+const lightboxZoomIn = document.getElementById('lightboxZoomIn');
+const lightboxZoomOut = document.getElementById('lightboxZoomOut');
+const lightboxZoomReset = document.getElementById('lightboxZoomReset');
+const lightboxZoomLevel = document.getElementById('lightboxZoomLevel');
 
 // Vérifier l'authentification au chargement
 async function checkAuth() {
@@ -161,6 +175,9 @@ function closeLightbox() {
         lightboxVideo.pause();
         lightboxVideo.src = '';
     }
+
+    // Réinitialiser le zoom
+    resetZoom();
 }
 
 // Afficher un média dans le lightbox
@@ -169,6 +186,9 @@ function showMedia(index) {
 
     const media = allMedia[index];
     currentMediaIndex = index;
+
+    // Réinitialiser le zoom
+    resetZoom();
 
     // Mettre à jour le compteur
     lightboxCounter.textContent = `${index + 1} / ${allMedia.length}`;
@@ -186,12 +206,19 @@ function showMedia(index) {
         lightboxImage.src = media.path;
         lightboxImage.alt = media.name;
         lightboxImage.style.display = 'block';
+        lightboxImage.className = 'lightbox-image zoomable';
+
+        // Afficher les contrôles de zoom pour les images
+        lightboxZoomControls.style.display = 'flex';
     } else {
         lightboxImage.style.display = 'none';
 
         lightboxVideo.src = media.path;
         lightboxVideo.style.display = 'block';
         lightboxVideo.load();
+
+        // Masquer les contrôles de zoom pour les vidéos
+        lightboxZoomControls.style.display = 'none';
     }
 }
 
@@ -279,6 +306,105 @@ async function logout() {
     }
 }
 
+// ===== Fonctions de zoom =====
+
+function setZoom(newZoom) {
+    zoomLevel = Math.max(1, Math.min(5, newZoom)); // Limiter entre 1x et 5x
+
+    lightboxImage.style.transform = `scale(${zoomLevel})`;
+
+    if (zoomLevel > 1) {
+        lightboxImage.className = 'lightbox-image zoomed';
+        lightboxMediaContainer.classList.add('zoomed');
+    } else {
+        lightboxImage.className = 'lightbox-image zoomable';
+        lightboxMediaContainer.classList.remove('zoomed');
+    }
+
+    updateZoomDisplay();
+}
+
+function zoomIn() {
+    setZoom(zoomLevel + 0.25);
+}
+
+function zoomOut() {
+    setZoom(zoomLevel - 0.25);
+}
+
+function resetZoom() {
+    zoomLevel = 1;
+    lightboxImage.style.transform = 'scale(1)';
+    lightboxImage.className = 'lightbox-image zoomable';
+    lightboxMediaContainer.classList.remove('zoomed');
+    lightboxMediaContainer.scrollLeft = 0;
+    lightboxMediaContainer.scrollTop = 0;
+    updateZoomDisplay();
+}
+
+function updateZoomDisplay() {
+    lightboxZoomLevel.textContent = `${Math.round(zoomLevel * 100)}%`;
+    lightboxZoomOut.disabled = zoomLevel <= 1;
+    lightboxZoomIn.disabled = zoomLevel >= 5;
+}
+
+// Gestion du drag/pan de l'image
+function handlePanStart(e) {
+    if (zoomLevel <= 1) return;
+
+    isPanning = true;
+    lightboxMediaContainer.style.cursor = 'grabbing';
+
+    startX = e.pageX - lightboxMediaContainer.offsetLeft;
+    startY = e.pageY - lightboxMediaContainer.offsetTop;
+    scrollLeft = lightboxMediaContainer.scrollLeft;
+    scrollTop = lightboxMediaContainer.scrollTop;
+
+    e.preventDefault();
+}
+
+function handlePanMove(e) {
+    if (!isPanning) return;
+
+    e.preventDefault();
+
+    const x = e.pageX - lightboxMediaContainer.offsetLeft;
+    const y = e.pageY - lightboxMediaContainer.offsetTop;
+    const walkX = (x - startX) * 2;
+    const walkY = (y - startY) * 2;
+
+    lightboxMediaContainer.scrollLeft = scrollLeft - walkX;
+    lightboxMediaContainer.scrollTop = scrollTop - walkY;
+}
+
+function handlePanEnd() {
+    isPanning = false;
+    if (zoomLevel > 1) {
+        lightboxMediaContainer.style.cursor = 'grab';
+    }
+}
+
+// Gestion de la molette pour zoomer
+function handleWheel(e) {
+    if (!isLightboxOpen || lightboxImage.style.display === 'none') return;
+
+    e.preventDefault();
+
+    const delta = e.deltaY > 0 ? -0.25 : 0.25;
+    setZoom(zoomLevel + delta);
+}
+
+// Double-clic pour zoomer/dézoomer
+function handleDoubleClick(e) {
+    if (lightboxImage.style.display === 'none') return;
+
+    if (zoomLevel > 1) {
+        resetZoom();
+    } else {
+        setZoom(2);
+    }
+}
+
 // Gestion des événements
 lightboxClose.addEventListener('click', closeLightbox);
 lightboxPrev.addEventListener('click', () => navigateLightbox(-1));
@@ -286,6 +412,23 @@ lightboxNext.addEventListener('click', () => navigateLightbox(1));
 lightboxDownload.addEventListener('click', downloadCurrentMedia);
 downloadAllBtn.addEventListener('click', downloadAll);
 logoutBtn.addEventListener('click', logout);
+
+// Événements de zoom
+lightboxZoomIn.addEventListener('click', zoomIn);
+lightboxZoomOut.addEventListener('click', zoomOut);
+lightboxZoomReset.addEventListener('click', resetZoom);
+
+// Événements de pan/drag
+lightboxMediaContainer.addEventListener('mousedown', handlePanStart);
+lightboxMediaContainer.addEventListener('mousemove', handlePanMove);
+lightboxMediaContainer.addEventListener('mouseup', handlePanEnd);
+lightboxMediaContainer.addEventListener('mouseleave', handlePanEnd);
+
+// Événement de molette
+lightboxMediaContainer.addEventListener('wheel', handleWheel, { passive: false });
+
+// Double-clic pour zoomer
+lightboxImage.addEventListener('dblclick', handleDoubleClick);
 
 // Clic sur le backdrop pour fermer
 lightbox.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
@@ -299,10 +442,21 @@ document.addEventListener('keydown', (e) => {
             closeLightbox();
             break;
         case 'ArrowLeft':
-            navigateLightbox(-1);
+            if (!isPanning) navigateLightbox(-1);
             break;
         case 'ArrowRight':
-            navigateLightbox(1);
+            if (!isPanning) navigateLightbox(1);
+            break;
+        case '+':
+        case '=':
+            if (lightboxImage.style.display !== 'none') zoomIn();
+            break;
+        case '-':
+        case '_':
+            if (lightboxImage.style.display !== 'none') zoomOut();
+            break;
+        case '0':
+            if (lightboxImage.style.display !== 'none') resetZoom();
             break;
     }
 });
