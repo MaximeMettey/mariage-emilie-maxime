@@ -3,5 +3,9 @@ node_modules/
 media/*
 !media/.gitkeep
 .thumbnails/
+music/*
+!music/.gitkeep
+public/images/*
+!public/images/.gitkeep
 *.log
 .DS_Store

@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 3000;
 const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
 const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
+const MUSIC_DIR = path.join(__dirname, 'music');
 
 // Middleware
 app.use(express.json());
@@ -43,6 +44,7 @@ const requireAuth = (req, res, next) => {
 app.use(express.static('public'));
 app.use('/media', requireAuth, express.static(MEDIA_DIR));
 app.use('/thumbnails', requireAuth, express.static(THUMBNAILS_DIR));
+app.use('/music', requireAuth, express.static(MUSIC_DIR));
 
 // Routes d'authentification
 app.post('/api/login', (req, res) => {
@@ -279,6 +281,42 @@ app.get('/api/media', requireAuth, async (req, res) => {
     console.error('Erreur:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des médias' });
   }
+});
+
+// Route pour obtenir la liste des musiques
+app.get('/api/music', requireAuth, async (req, res) => {
+  try {
+    // Créer le dossier music s'il n'existe pas
+    if (!fsSync.existsSync(MUSIC_DIR)) {
+      await fs.mkdir(MUSIC_DIR, { recursive: true });
+      return res.json({ tracks: [] });
+    }
+
+    const files = await fs.readdir(MUSIC_DIR);
+    const musicFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext);
+    });
+
+    const tracks = musicFiles.map(file => ({
+      name: path.basename(file, path.extname(file)),
+      path: `/music/${file}`
+    }));
+
+    res.json({ tracks });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des musiques:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des musiques' });
+  }
+});
+
+// Route pour obtenir la configuration
+app.get('/api/config', requireAuth, (req, res) => {
+  res.json({
+    welcomeTitle: process.env.WELCOME_TITLE || 'Merci d\'être venus !',
+    welcomeMessage: process.env.WELCOME_MESSAGE || 'Nous sommes ravis d\'avoir partagé ce moment avec vous. Retrouvez ici tous les souvenirs de notre journée magique.',
+    welcomeImage: process.env.WELCOME_IMAGE || '/images/welcome.jpg'
+  });
 });
 
 // Route pour télécharger tous les médias en ZIP
