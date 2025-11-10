@@ -7,5 +7,6 @@ music/*
 !music/.gitkeep
 public/images/*
 !public/images/.gitkeep
+!public/images/welcome.jpg
 *.log
 .DS_Store

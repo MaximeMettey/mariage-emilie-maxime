@@ -315,7 +315,7 @@ app.get('/api/config', requireAuth, (req, res) => {
   res.json({
     welcomeTitle: process.env.WELCOME_TITLE || 'Merci d\'être venus !',
     welcomeMessage: process.env.WELCOME_MESSAGE || 'Nous sommes ravis d\'avoir partagé ce moment avec vous. Retrouvez ici tous les souvenirs de notre journée magique.',
-    welcomeImage: process.env.WELCOME_IMAGE || ''
+    welcomeImage: process.env.WELCOME_IMAGE || '/images/welcome.jpg'
   });
 });
 
