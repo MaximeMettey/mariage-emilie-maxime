@@ -319,6 +319,19 @@ app.get('/api/config', requireAuth, (req, res) => {
   });
 });
 
+// Route pour obtenir la liste des prestataires
+app.get('/api/providers', requireAuth, (req, res) => {
+  try {
+    const providersPath = path.join(__dirname, 'providers.json');
+    const providersData = fsSync.readFileSync(providersPath, 'utf8');
+    const providers = JSON.parse(providersData);
+    res.json(providers);
+  } catch (error) {
+    console.error('Erreur lors de la lecture des prestataires:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des prestataires' });
+  }
+});
+
 // Route pour télécharger tous les médias en ZIP
 app.get('/api/download-all', requireAuth, async (req, res) => {
   try {
