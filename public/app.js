@@ -329,6 +329,8 @@ async function downloadFolder(folderName) {
 // ===== Fonctions de zoom =====
 
 function setZoom(newZoom) {
+    if (!lightboxImage) return;
+
     zoomLevel = Math.max(1, Math.min(5, newZoom)); // Limiter entre 1x et 5x
     lightboxImage.style.transform = `scale(${zoomLevel})`;
 
@@ -349,18 +351,31 @@ function zoomOut() {
 
 function resetZoom() {
     zoomLevel = 1;
-    lightboxImage.style.transform = 'scale(1)';
-    lightboxImage.style.cursor = 'default';
+    if (lightboxImage) {
+        lightboxImage.style.transform = 'scale(1)';
+        lightboxImage.style.cursor = 'default';
+    }
 }
 
 // Gestion du drag/pan de l'image
-lightboxImage.addEventListener('mousedown', (e) => {
-    if (zoomLevel <= 1) return;
-    isPanning = true;
-    lightboxImage.style.cursor = 'grabbing';
-    startX = e.clientX;
-    startY = e.clientY;
-});
+if (lightboxImage) {
+    lightboxImage.addEventListener('mousedown', (e) => {
+        if (zoomLevel <= 1) return;
+        isPanning = true;
+        lightboxImage.style.cursor = 'grabbing';
+        startX = e.clientX;
+        startY = e.clientY;
+    });
+
+    // Double-clic pour zoomer/dézoomer
+    lightboxImage.addEventListener('dblclick', () => {
+        if (zoomLevel > 1) {
+            resetZoom();
+        } else {
+            setZoom(2);
+        }
+    });
+}
 
 document.addEventListener('mousemove', (e) => {
     if (!isPanning) return;
@@ -372,17 +387,8 @@ document.addEventListener('mousemove', (e) => {
 
 document.addEventListener('mouseup', () => {
     isPanning = false;
-    if (zoomLevel > 1) {
+    if (zoomLevel > 1 && lightboxImage) {
         lightboxImage.style.cursor = 'grab';
-    }
-});
-
-// Double-clic pour zoomer/dézoomer
-lightboxImage.addEventListener('dblclick', () => {
-    if (zoomLevel > 1) {
-        resetZoom();
-    } else {
-        setZoom(2);
     }
 });
 

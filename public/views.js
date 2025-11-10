@@ -22,7 +22,7 @@ async function renderWelcomeView() {
 
                         <div class="welcome-content">
                             <div class="welcome-image-container">
-                                <img src="${config.welcomeImage}" alt="Photo de remerciement" class="welcome-image">
+                                <img src="${config.welcomeImage}" alt="Photo de remerciement" class="welcome-image" onerror="this.parentElement.style.display='none'">
                             </div>
 
                             <h2 class="welcome-title">${config.welcomeTitle}</h2>
