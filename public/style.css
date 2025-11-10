@@ -29,11 +29,12 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Cormorant Garamond', 'Georgia', serif;
     background: linear-gradient(135deg, var(--color-black) 0%, var(--color-darker) 50%, var(--color-dark) 100%);
     color: var(--color-white);
     min-height: 100vh;
     line-height: 1.6;
+    font-size: 18px;
 }
 
 /* Page de connexion */
@@ -68,9 +69,10 @@ body {
 }
 
 .couple-names {
-    font-size: 2.5rem;
-    font-weight: 300;
-    letter-spacing: 2px;
+    font-family: 'Great Vibes', cursive;
+    font-size: 3.5rem;
+    font-weight: 400;
+    letter-spacing: 0;
     background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-light) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -79,14 +81,17 @@ body {
 }
 
 .wedding-date {
+    font-family: 'Cinzel', serif;
     font-size: 1.1rem;
     color: var(--color-gold);
     font-weight: 500;
     margin-bottom: 8px;
+    letter-spacing: 1px;
 }
 
 .wedding-location {
-    font-size: 0.95rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
     color: var(--color-gray);
     font-style: italic;
 }
@@ -110,10 +115,12 @@ body {
 }
 
 .form-group label {
-    font-size: 0.9rem;
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
     color: var(--color-gold);
     font-weight: 500;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .form-group input {
@@ -138,17 +145,19 @@ body {
 }
 
 .btn-primary {
+    font-family: 'Cinzel', serif;
     padding: 14px 24px;
     background: linear-gradient(135deg, var(--color-burgundy) 0%, var(--color-burgundy-dark) 100%);
     color: var(--color-white);
     border: 1px solid var(--color-gold);
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow-sm);
-    letter-spacing: 0.5px;
 }
 
 .btn-primary:hover {
@@ -200,9 +209,10 @@ body {
 }
 
 .header-title {
-    font-size: 1.8rem;
-    font-weight: 300;
-    letter-spacing: 1.5px;
+    font-family: 'Great Vibes', cursive;
+    font-size: 2.5rem;
+    font-weight: 400;
+    letter-spacing: 0;
     background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-light) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -211,8 +221,10 @@ body {
 }
 
 .header-subtitle {
+    font-family: 'Cinzel', serif;
     font-size: 0.9rem;
     color: var(--color-gray);
+    letter-spacing: 1px;
 }
 
 .header-actions {
@@ -222,13 +234,16 @@ body {
 }
 
 .btn-secondary {
+    font-family: 'Cinzel', serif;
     padding: 10px 20px;
     background: rgba(212, 175, 55, 0.1);
     color: var(--color-gold);
     border: 1px solid var(--color-gold);
     border-radius: 8px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     cursor: pointer;
     transition: var(--transition);
     display: flex;
@@ -345,8 +360,9 @@ body {
 }
 
 .folder-title {
-    font-size: 1.5rem;
-    font-weight: 400;
+    font-family: 'Cinzel', serif;
+    font-size: 1.6rem;
+    font-weight: 600;
     color: var(--color-gold);
     letter-spacing: 1px;
 }
@@ -365,12 +381,16 @@ body {
 }
 
 .btn-small {
+    font-family: 'Cinzel', serif;
     padding: 8px 16px;
     background: rgba(139, 21, 56, 0.3);
     color: var(--color-gold);
     border: 1px solid var(--color-burgundy);
     border-radius: 6px;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     cursor: pointer;
     transition: var(--transition);
     display: flex;
