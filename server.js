@@ -315,7 +315,7 @@ app.get('/api/config', requireAuth, (req, res) => {
   res.json({
     welcomeTitle: process.env.WELCOME_TITLE || 'Merci d\'être venus !',
     welcomeMessage: process.env.WELCOME_MESSAGE || 'Nous sommes ravis d\'avoir partagé ce moment avec vous. Retrouvez ici tous les souvenirs de notre journée magique.',
-    welcomeImage: process.env.WELCOME_IMAGE || '/images/welcome.jpg'
+    welcomeImage: process.env.WELCOME_IMAGE || ''
   });
 });
 
@@ -390,6 +390,12 @@ app.get('/api/download-folder/:folderName', requireAuth, async (req, res) => {
     console.error('Erreur:', error);
     res.status(500).json({ error: 'Erreur lors du téléchargement' });
   }
+});
+
+// Route catch-all pour le routage SPA (doit être après toutes les autres routes)
+// Cette route permet de rafraîchir (F5) n'importe quelle page de la SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Démarrer le serveur

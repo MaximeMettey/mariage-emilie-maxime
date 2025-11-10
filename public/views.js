@@ -21,9 +21,11 @@ async function renderWelcomeView() {
                         <div class="divider"></div>
 
                         <div class="welcome-content">
+                            ${config.welcomeImage ? `
                             <div class="welcome-image-container">
                                 <img src="${config.welcomeImage}" alt="Photo de remerciement" class="welcome-image" onerror="this.parentElement.style.display='none'">
                             </div>
+                            ` : ''}
 
                             <h2 class="welcome-title">${config.welcomeTitle}</h2>
                             <p class="welcome-message">${config.welcomeMessage}</p>
