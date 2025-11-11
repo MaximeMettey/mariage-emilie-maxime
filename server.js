@@ -9,6 +9,7 @@ const archiver = require('archiver');
 const exifParser = require('exif-parser');
 const sharp = require('sharp');
 const crypto = require('crypto');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,7 @@ const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
 const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
 const MUSIC_DIR = path.join(__dirname, 'music');
+const UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Uploads');
 
 // Middleware
 app.use(express.json());
@@ -401,6 +403,65 @@ app.get('/api/download-folder/:folderName', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Erreur:', error);
     res.status(500).json({ error: 'Erreur lors du téléchargement' });
+  }
+});
+
+// Configuration multer pour l'upload de photos
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    try {
+      // Créer le dossier d'uploads s'il n'existe pas
+      if (!fsSync.existsSync(UPLOADS_DIR)) {
+        await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      }
+      cb(null, UPLOADS_DIR);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    // Générer un nom unique pour éviter les conflits
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max par fichier
+    files: 20 // 20 fichiers max par upload
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|mp4|webm|mov|avi|mkv/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Seuls les images et vidéos sont autorisées'));
+    }
+  }
+});
+
+// Route pour uploader des photos
+app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Aucun fichier reçu' });
+    }
+
+    res.json({
+      success: true,
+      count: req.files.length,
+      message: `${req.files.length} fichier(s) uploadé(s) avec succès`
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'upload:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'upload des fichiers' });
   }
 });
 

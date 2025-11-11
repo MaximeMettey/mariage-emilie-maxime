@@ -174,8 +174,61 @@ async function renderGalleryView() {
                 </div>
             </header>
 
+            <div class="upload-banner">
+                <div class="upload-banner-content">
+                    <p class="upload-message">Vous avez pris de beaux souvenirs de la soirée et souhaitez les partager avec les invités ?</p>
+                    <button id="uploadBtn" class="btn-upload">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Envoyer vos photos
+                    </button>
+                </div>
+            </div>
+
             <div id="foldersContainer" class="folders-container">
                 <div class="loading">Chargement des médias...</div>
+            </div>
+        </div>
+
+        <!-- Modale d'upload -->
+        <div id="uploadModal" class="upload-modal" style="display: none;">
+            <div class="upload-modal-content">
+                <button id="closeUploadModal" class="upload-modal-close">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
+                <h2 class="upload-modal-title">Partagez vos souvenirs</h2>
+                <p class="upload-modal-subtitle">Sélectionnez les photos que vous souhaitez partager avec nous</p>
+
+                <form id="uploadForm" class="upload-form">
+                    <div class="upload-zone" id="uploadZone">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Glissez vos photos ici ou cliquez pour sélectionner</p>
+                        <input type="file" id="fileInput" name="photos" multiple accept="image/*,video/*" style="display: none;">
+                    </div>
+
+                    <div id="filesList" class="files-list"></div>
+
+                    <div class="upload-actions">
+                        <button type="button" id="cancelUpload" class="btn-secondary">Annuler</button>
+                        <button type="submit" id="submitUpload" class="btn-primary" disabled>Envoyer</button>
+                    </div>
+
+                    <div id="uploadProgress" class="upload-progress" style="display: none;">
+                        <div class="upload-progress-bar"></div>
+                        <p class="upload-progress-text">Envoi en cours...</p>
+                    </div>
+                </form>
             </div>
         </div>
     `;
@@ -183,5 +236,190 @@ async function renderGalleryView() {
     // Charger la galerie via les fonctions existantes
     if (typeof loadMedia === 'function') {
         await loadMedia();
+    }
+
+    // Gestion de la modale d'upload
+    setupUploadModal();
+}
+
+// Gestion de l'upload de photos
+function setupUploadModal() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadModal = document.getElementById('uploadModal');
+    const closeUploadModal = document.getElementById('closeUploadModal');
+    const cancelUpload = document.getElementById('cancelUpload');
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const filesList = document.getElementById('filesList');
+    const uploadForm = document.getElementById('uploadForm');
+    const submitUpload = document.getElementById('submitUpload');
+    const uploadProgress = document.getElementById('uploadProgress');
+
+    let selectedFiles = [];
+
+    // Ouvrir la modale
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', () => {
+            uploadModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        });
+    }
+
+    // Fermer la modale
+    const closeModal = () => {
+        uploadModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        selectedFiles = [];
+        filesList.innerHTML = '';
+        submitUpload.disabled = true;
+        uploadProgress.style.display = 'none';
+    };
+
+    if (closeUploadModal) {
+        closeUploadModal.addEventListener('click', closeModal);
+    }
+
+    if (cancelUpload) {
+        cancelUpload.addEventListener('click', closeModal);
+    }
+
+    // Clic sur la zone d'upload
+    if (uploadZone) {
+        uploadZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+    }
+
+    // Gestion du drag and drop
+    if (uploadZone) {
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            addFiles(files);
+        });
+    }
+
+    // Sélection de fichiers
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            addFiles(files);
+        });
+    }
+
+    // Ajouter des fichiers
+    function addFiles(files) {
+        files.forEach(file => {
+            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                selectedFiles.push(file);
+            }
+        });
+        renderFilesList();
+    }
+
+    // Afficher la liste des fichiers
+    function renderFilesList() {
+        filesList.innerHTML = '';
+
+        selectedFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-item-info';
+
+            const fileName = document.createElement('div');
+            fileName.className = 'file-item-name';
+            fileName.textContent = file.name;
+
+            const fileSize = document.createElement('div');
+            fileSize.className = 'file-item-size';
+            fileSize.textContent = formatFileSize(file.size);
+
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileSize);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'file-item-remove';
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+            removeBtn.onclick = () => removeFile(index);
+
+            fileItem.appendChild(fileInfo);
+            fileItem.appendChild(removeBtn);
+            filesList.appendChild(fileItem);
+        });
+
+        submitUpload.disabled = selectedFiles.length === 0;
+    }
+
+    // Supprimer un fichier
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        renderFilesList();
+    }
+
+    // Formater la taille du fichier
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // Soumettre le formulaire
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (selectedFiles.length === 0) return;
+
+            // Afficher la progression
+            uploadProgress.style.display = 'block';
+            submitUpload.disabled = true;
+            cancelUpload.disabled = true;
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('photos', file);
+            });
+
+            try {
+                const response = await fetch('/api/upload-photos', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`${result.count} photo(s) envoyée(s) avec succès ! Merci pour votre partage.`);
+                    closeModal();
+                    // Recharger la galerie
+                    if (typeof loadMedia === 'function') {
+                        await loadMedia();
+                    }
+                } else {
+                    throw new Error(result.error || 'Erreur lors de l\'upload');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue lors de l\'envoi. Veuillez réessayer.');
+                uploadProgress.style.display = 'none';
+                submitUpload.disabled = false;
+                cancelUpload.disabled = false;
+            }
+        });
     }
 }

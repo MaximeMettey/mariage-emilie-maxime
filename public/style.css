@@ -284,6 +284,61 @@ body {
     padding: 32px;
 }
 
+/* Banner d'upload */
+.upload-banner {
+    background: linear-gradient(135deg, rgba(139, 21, 56, 0.1) 0%, rgba(212, 175, 55, 0.1) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 12px;
+    padding: 24px 32px;
+    margin: 32px auto;
+    max-width: 1400px;
+}
+
+.upload-banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.upload-message {
+    color: var(--color-white);
+    font-size: 1.1rem;
+    margin: 0;
+    flex: 1;
+    min-width: 300px;
+}
+
+.btn-upload {
+    font-family: 'Cinzel', serif;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%);
+    color: var(--color-black);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-upload:hover {
+    background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 100%);
+    box-shadow: var(--shadow-md), var(--shadow-gold);
+    transform: translateY(-2px);
+}
+
+.btn-upload:active {
+    transform: translateY(0);
+}
+
 /* Spinner de chargement */
 .loading-spinner {
     display: flex;
@@ -772,6 +827,200 @@ body {
     font-weight: 500;
     min-width: 50px;
     text-align: center;
+}
+
+/* Modale d'upload */
+.upload-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.upload-modal-content {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 16px;
+    padding: 40px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: var(--shadow-lg), var(--shadow-gold);
+}
+
+.upload-modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: rgba(139, 21, 56, 0.3);
+    border: 1px solid var(--color-gold);
+    border-radius: 50%;
+    color: var(--color-gold);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.upload-modal-close:hover {
+    background: rgba(139, 21, 56, 0.5);
+    transform: rotate(90deg);
+}
+
+.upload-modal-title {
+    font-family: 'Cinzel', serif;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--color-gold);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.upload-modal-subtitle {
+    color: var(--color-gray);
+    text-align: center;
+    margin-bottom: 32px;
+    font-size: 1rem;
+}
+
+.upload-zone {
+    border: 2px dashed rgba(212, 175, 55, 0.4);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    background: rgba(212, 175, 55, 0.05);
+}
+
+.upload-zone:hover {
+    border-color: var(--color-gold);
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.upload-zone.drag-over {
+    border-color: var(--color-gold);
+    background: rgba(212, 175, 55, 0.15);
+}
+
+.upload-zone svg {
+    color: var(--color-gold);
+    margin-bottom: 16px;
+}
+
+.upload-zone p {
+    color: var(--color-gray);
+    font-size: 1rem;
+}
+
+.files-list {
+    margin: 24px 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.file-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-item-name {
+    color: var(--color-white);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-item-size {
+    color: var(--color-gray);
+    font-size: 0.85rem;
+}
+
+.file-item-remove {
+    width: 32px;
+    height: 32px;
+    background: rgba(139, 21, 56, 0.3);
+    border: 1px solid var(--color-burgundy);
+    border-radius: 50%;
+    color: var(--color-gold);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.file-item-remove:hover {
+    background: rgba(139, 21, 56, 0.5);
+}
+
+.upload-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.upload-actions button {
+    flex: 1;
+}
+
+.upload-progress {
+    margin-top: 24px;
+    text-align: center;
+}
+
+.upload-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(212, 175, 55, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.upload-progress-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--color-gold) 0%, var(--color-gold-light) 100%);
+    border-radius: 3px;
+    animation: progressAnimation 2s ease-in-out infinite;
+}
+
+@keyframes progressAnimation {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+
+.upload-progress-text {
+    color: var(--color-gold);
+    font-size: 0.95rem;
+    margin: 0;
 }
 
 /* Section Prestataires */
