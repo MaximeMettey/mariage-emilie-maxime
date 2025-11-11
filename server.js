@@ -182,101 +182,113 @@ async function getVideoThumbnail(folderName, fileName) {
   }
 }
 
-// Fonction pour scanner le dossier media
+// Fonction pour scanner le dossier media avec 2 niveaux
 async function scanMediaDirectory() {
-  const folders = [];
+  const categories = [];
 
   try {
     // Créer le dossier media s'il n'existe pas
     if (!fsSync.existsSync(MEDIA_DIR)) {
       await fs.mkdir(MEDIA_DIR, { recursive: true });
-      return folders;
+      return categories;
     }
 
-    const items = await fs.readdir(MEDIA_DIR, { withFileTypes: true });
+    const categoryItems = await fs.readdir(MEDIA_DIR, { withFileTypes: true });
 
-    for (const item of items) {
-      if (item.isDirectory()) {
-        const folderPath = path.join(MEDIA_DIR, item.name);
-        const files = await fs.readdir(folderPath);
+    // Premier niveau : catégories
+    for (const categoryItem of categoryItems) {
+      if (categoryItem.isDirectory()) {
+        const categoryPath = path.join(MEDIA_DIR, categoryItem.name);
+        const subFolders = await fs.readdir(categoryPath, { withFileTypes: true });
 
-        const mediaFiles = [];
+        const foldersInCategory = [];
 
-        for (const file of files) {
-          const filePath = path.join(folderPath, file);
-          const ext = path.extname(file).toLowerCase();
+        // Deuxième niveau : dossiers de médias
+        for (const subFolder of subFolders) {
+          if (subFolder.isDirectory()) {
+            const subFolderPath = path.join(categoryPath, subFolder.name);
+            const files = await fs.readdir(subFolderPath);
 
-          // Vérifier si c'est un fichier média
-          const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
-          const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
+            const mediaFiles = [];
 
-          if (isImage || isVideo) {
-            const stats = await fs.stat(filePath);
-            let date;
+            // Scanner les fichiers médias
+            for (const file of files) {
+              const filePath = path.join(subFolderPath, file);
+              const ext = path.extname(file).toLowerCase();
 
-            if (isImage) {
-              date = await getImageDate(filePath);
-            } else {
-              date = await getVideoDate(filePath);
+              // Vérifier si c'est un fichier média
+              const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+              const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
+
+              if (isImage || isVideo) {
+                const stats = await fs.stat(filePath);
+                let date;
+
+                if (isImage) {
+                  date = await getImageDate(filePath);
+                } else {
+                  date = await getVideoDate(filePath);
+                }
+
+                // Générer le thumbnail pour images et vidéos
+                let thumbnailPath = null;
+                if (isImage) {
+                  thumbnailPath = await getThumbnail(filePath, `${categoryItem.name}/${subFolder.name}`, file);
+                } else if (isVideo) {
+                  thumbnailPath = await getVideoThumbnail(`${categoryItem.name}/${subFolder.name}`, file);
+                }
+
+                mediaFiles.push({
+                  name: file,
+                  path: `/media/${categoryItem.name}/${subFolder.name}/${file}`,
+                  thumbnail: thumbnailPath || `/media/${categoryItem.name}/${subFolder.name}/${file}`,
+                  type: isImage ? 'image' : 'video',
+                  size: stats.size,
+                  date: date.toISOString()
+                });
+              }
             }
 
-            // Générer le thumbnail pour images et vidéos
-            let thumbnailPath = null;
-            if (isImage) {
-              thumbnailPath = await getThumbnail(filePath, item.name, file);
-            } else if (isVideo) {
-              thumbnailPath = await getVideoThumbnail(item.name, file);
-            }
+            // Trier les fichiers par date
+            mediaFiles.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            mediaFiles.push({
-              name: file,
-              path: `/media/${item.name}/${file}`,
-              thumbnail: thumbnailPath || `/media/${item.name}/${file}`,
-              type: isImage ? 'image' : 'video',
-              size: stats.size,
-              date: date.toISOString()
-            });
+            if (mediaFiles.length > 0) {
+              foldersInCategory.push({
+                name: subFolder.name,
+                files: mediaFiles,
+                count: mediaFiles.length
+              });
+            }
           }
         }
 
-        // Trier les fichiers par date
-        mediaFiles.sort((a, b) => new Date(a.date) - new Date(b.date));
+        // Trier les dossiers alphabétiquement
+        foldersInCategory.sort((a, b) => a.name.localeCompare(b.name));
 
-        if (mediaFiles.length > 0) {
-          // Déterminer la catégorie en fonction du nom du dossier
-          const folderNameLower = item.name.toLowerCase();
-          const isProfessional =
-            folderNameLower.includes('pro') ||
-            folderNameLower.includes('photographe') ||
-            folderNameLower.includes('photog') ||
-            folderNameLower.includes('darkcube') ||
-            folderNameLower.includes('professionnel');
-
-          folders.push({
-            name: item.name,
-            files: mediaFiles,
-            count: mediaFiles.length,
-            category: isProfessional ? 'professional' : 'guest'
+        if (foldersInCategory.length > 0) {
+          categories.push({
+            category: categoryItem.name,
+            folders: foldersInCategory
           });
         }
       }
     }
 
-    // Trier les dossiers alphabétiquement
-    folders.sort((a, b) => a.name.localeCompare(b.name));
+    // Trier les catégories alphabétiquement
+    categories.sort((a, b) => a.category.localeCompare(b.category));
 
   } catch (error) {
     console.error('Erreur lors du scan des médias:', error);
   }
 
-  return folders;
+  return categories;
 }
 
 // Route pour obtenir la liste des médias
 app.get('/api/media', requireAuth, async (req, res) => {
   try {
-    const folders = await scanMediaDirectory();
-    res.json({ folders });
+    const categories = await scanMediaDirectory();
+    res.json({ categories });
   } catch (error) {
     console.error('Erreur:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des médias' });

@@ -39,8 +39,8 @@ async function loadMedia() {
         const response = await fetch('/api/media');
         const data = await response.json();
 
-        if (data.folders && data.folders.length > 0) {
-            renderGallery(data.folders);
+        if (data.categories && data.categories.length > 0) {
+            renderGallery(data.categories);
         } else {
             foldersContainer.innerHTML = '<div class="empty-state">Aucun média trouvé</div>';
         }
@@ -57,54 +57,37 @@ async function loadMedia() {
 }
 
 // Rendre la galerie
-function renderGallery(folders) {
+function renderGallery(categories) {
     const foldersContainer = document.getElementById('foldersContainer');
     if (!foldersContainer) return;
 
     foldersContainer.innerHTML = '';
     allMedia = [];
 
-    // Séparer les dossiers par catégorie
-    const professionalFolders = folders.filter(f => f.category === 'professional');
-    const guestFolders = folders.filter(f => f.category === 'guest');
+    let globalFolderIndex = 0;
 
-    // Créer la section des photos professionnelles
-    if (professionalFolders.length > 0) {
+    // Parcourir chaque catégorie
+    categories.forEach((categoryData) => {
         const categorySection = document.createElement('div');
         categorySection.className = 'category-section';
 
         const categoryTitle = document.createElement('h2');
         categoryTitle.className = 'category-title';
-        categoryTitle.textContent = '📸 Photos Professionnelles';
+        categoryTitle.textContent = categoryData.category;
         categorySection.appendChild(categoryTitle);
 
-        professionalFolders.forEach((folder, folderIndex) => {
-            categorySection.appendChild(createFolderSection(folder, folderIndex));
+        // Parcourir les dossiers de cette catégorie
+        categoryData.folders.forEach((folder) => {
+            categorySection.appendChild(createFolderSection(folder, globalFolderIndex, categoryData.category));
+            globalFolderIndex++;
         });
 
         foldersContainer.appendChild(categorySection);
-    }
-
-    // Créer la section des photos des invités
-    if (guestFolders.length > 0) {
-        const categorySection = document.createElement('div');
-        categorySection.className = 'category-section';
-
-        const categoryTitle = document.createElement('h2');
-        categoryTitle.className = 'category-title';
-        categoryTitle.textContent = '📱 Photos des Invités';
-        categorySection.appendChild(categoryTitle);
-
-        guestFolders.forEach((folder, folderIndex) => {
-            categorySection.appendChild(createFolderSection(folder, professionalFolders.length + folderIndex));
-        });
-
-        foldersContainer.appendChild(categorySection);
-    }
+    });
 }
 
 // Créer une section de dossier
-function createFolderSection(folder, folderIndex) {
+function createFolderSection(folder, folderIndex, categoryName) {
     // Créer la section du dossier
     const folderSection = document.createElement('div');
     folderSection.className = 'folder-section';
@@ -136,7 +119,7 @@ function createFolderSection(folder, folderIndex) {
         </svg>
         Télécharger ce dossier
     `;
-    downloadFolderBtn.onclick = () => downloadFolder(folder.name);
+    downloadFolderBtn.onclick = () => downloadFolder(`${categoryName}/${folder.name}`);
 
     folderActions.appendChild(folderCount);
     folderActions.appendChild(downloadFolderBtn);
