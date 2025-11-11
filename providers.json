@@ -109,6 +109,24 @@
       "websiteLink": "https://millanova.com/dress/alina"
     },
     {
+      "id": "celine-at-home",
+      "name": "Coiffure",
+      "company": "Céline at home",
+      "description": "Une coiffure magnifique qui a sublimé ce jour unique.",
+      "logo": "/images/providers/celine-at-home.jpg",
+      "reviewLink": "",
+      "websiteLink": ""
+    },
+    {
+      "id": "anna-makeup",
+      "name": "Make Up",
+      "company": "Anna",
+      "description": "Un maquillage parfait pour une journée inoubliable.",
+      "logo": "/images/providers/anna-makeup.jpg",
+      "reviewLink": "",
+      "websiteLink": ""
+    },
+    {
       "id": "id-mariage",
       "name": "Costume",
       "company": "I.D. Mariage - Belfort",
