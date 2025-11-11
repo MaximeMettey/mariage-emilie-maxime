@@ -392,6 +392,12 @@ app.get('/api/download-folder/:folderName', requireAuth, async (req, res) => {
   }
 });
 
+// Route de fallback pour les routes SPA (doit être en dernier)
+// Renvoie index.html pour toutes les routes non-API afin que le router client puisse gérer la navigation
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`🎉 Serveur de galerie du mariage démarré sur http://localhost:${PORT}`);
