@@ -81,18 +81,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const burgerToggle = document.getElementById('burgerToggle');
     const mainNav = document.getElementById('mainNav');
     const navLinks = document.querySelectorAll('.nav-link');
+    const burgerIcon = document.getElementById('burgerIcon');
+    const closeIcon = document.getElementById('closeIcon');
 
-    if (burgerToggle && mainNav) {
+    if (burgerToggle && mainNav && burgerIcon && closeIcon) {
         // Toggle du menu au clic sur le burger
         burgerToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            mainNav.classList.toggle('menu-open');
+            const isOpen = mainNav.classList.toggle('menu-open');
+
+            // Changer l'icône
+            if (isOpen) {
+                burgerIcon.style.display = 'none';
+                closeIcon.style.display = 'block';
+            } else {
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
+            }
         });
 
         // Fermer le menu au clic sur un lien
         navLinks.forEach(link => {
             link.addEventListener('click', () => {
                 mainNav.classList.remove('menu-open');
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
             });
         });
 
@@ -101,6 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mainNav.classList.contains('menu-open') &&
                 !mainNav.contains(e.target)) {
                 mainNav.classList.remove('menu-open');
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
             }
         });
 
@@ -108,6 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && mainNav.classList.contains('menu-open')) {
                 mainNav.classList.remove('menu-open');
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
             }
         });
     }
