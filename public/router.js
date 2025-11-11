@@ -75,3 +75,40 @@ class Router {
 
 // Instance globale du router
 const router = new Router();
+
+// Gestion du menu burger pour mobile
+document.addEventListener('DOMContentLoaded', () => {
+    const burgerToggle = document.getElementById('burgerToggle');
+    const mainNav = document.getElementById('mainNav');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    if (burgerToggle && mainNav) {
+        // Toggle du menu au clic sur le burger
+        burgerToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mainNav.classList.toggle('menu-open');
+        });
+
+        // Fermer le menu au clic sur un lien
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mainNav.classList.remove('menu-open');
+            });
+        });
+
+        // Fermer le menu au clic en dehors
+        document.addEventListener('click', (e) => {
+            if (mainNav.classList.contains('menu-open') &&
+                !mainNav.contains(e.target)) {
+                mainNav.classList.remove('menu-open');
+            }
+        });
+
+        // Fermer le menu avec la touche Échap
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mainNav.classList.contains('menu-open')) {
+                mainNav.classList.remove('menu-open');
+            }
+        });
+    }
+});
