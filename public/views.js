@@ -423,3 +423,198 @@ function setupUploadModal() {
         });
     }
 }
+
+// Vue d'administration pour valider les uploads
+async function renderAdminView() {
+    const container = document.getElementById('appContent');
+
+    container.innerHTML = `
+        <div class="admin-page">
+            <header class="gallery-header">
+                <div class="header-content">
+                    <h1 class="page-title">Administration - Validation des uploads</h1>
+                    <button id="refreshPendingBtn" class="btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                        Actualiser
+                    </button>
+                </div>
+            </header>
+
+            <main class="gallery-main">
+                <div id="pendingUploadsContainer" class="pending-uploads-container">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Chargement des uploads en attente...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    `;
+
+    // Charger les uploads en attente
+    await loadPendingUploads();
+
+    // Gestion du bouton actualiser
+    const refreshBtn = document.getElementById('refreshPendingBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => loadPendingUploads());
+    }
+}
+
+// Charger les uploads en attente
+async function loadPendingUploads() {
+    const container = document.getElementById('pendingUploadsContainer');
+
+    try {
+        const response = await fetch('/api/admin/pending-uploads');
+        const data = await response.json();
+
+        if (data.files.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <h2>Aucun upload en attente</h2>
+                    <p>Tous les uploads ont été traités</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <div class="pending-uploads-header">
+                <h2>${data.files.length} fichier(s) en attente de validation</h2>
+            </div>
+            <div class="media-grid">
+        `;
+
+        data.files.forEach(file => {
+            const dateStr = new Date(file.uploadedAt).toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const sizeStr = formatFileSize(file.size);
+
+            html += `
+                <div class="media-item pending-media-item" data-filename="${file.name}">
+                    ${file.type === 'image' ? `
+                        <img src="${file.path}" alt="${file.name}">
+                    ` : `
+                        <video src="${file.path}"></video>
+                        <div class="play-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                        </div>
+                    `}
+
+                    <div class="pending-media-overlay">
+                        <div class="pending-media-info">
+                            <div class="pending-media-name">${file.name}</div>
+                            <div class="pending-media-meta">${dateStr} • ${sizeStr}</div>
+                        </div>
+                        <div class="pending-media-actions">
+                            <button class="btn-approve" onclick="approveUpload('${file.name}')">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Valider
+                            </button>
+                            <button class="btn-reject" onclick="rejectUpload('${file.name}')">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                                Rejeter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error('Erreur lors du chargement des uploads:', error);
+        container.innerHTML = `
+            <div class="error-state">
+                <p>Erreur lors du chargement des uploads en attente</p>
+            </div>
+        `;
+    }
+}
+
+// Valider un upload
+async function approveUpload(filename) {
+    if (!confirm(`Valider ce fichier ?\n${filename}`)) return;
+
+    try {
+        const response = await fetch('/api/admin/approve-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('Fichier validé avec succès !');
+            await loadPendingUploads();
+        } else {
+            throw new Error(result.error || 'Erreur lors de la validation');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de la validation');
+    }
+}
+
+// Rejeter un upload
+async function rejectUpload(filename) {
+    if (!confirm(`Rejeter et supprimer définitivement ce fichier ?\n${filename}\n\nCette action est irréversible.`)) return;
+
+    try {
+        const response = await fetch('/api/admin/reject-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('Fichier rejeté avec succès');
+            await loadPendingUploads();
+        } else {
+            throw new Error(result.error || 'Erreur lors du rejet');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors du rejet');
+    }
+}
+
+// Formater la taille de fichier
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}

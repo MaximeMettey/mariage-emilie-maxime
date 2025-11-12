@@ -10,6 +10,7 @@ const exifParser = require('exif-parser');
 const sharp = require('sharp');
 const crypto = require('crypto');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,7 +18,25 @@ const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
 const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
 const MUSIC_DIR = path.join(__dirname, 'music');
+const PENDING_UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Pending');
 const UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Uploads');
+
+// Configuration email
+let emailTransporter = null;
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  emailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+  console.log('📧 Configuration email SMTP activée');
+} else {
+  console.log('⚠️  Configuration email SMTP non configurée - les notifications ne seront pas envoyées');
+}
 
 // Middleware
 app.use(express.json());
@@ -406,15 +425,15 @@ app.get('/api/download-folder/:folderName', requireAuth, async (req, res) => {
   }
 });
 
-// Configuration multer pour l'upload de photos
+// Configuration multer pour l'upload de photos (en attente de validation)
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     try {
-      // Créer le dossier d'uploads s'il n'existe pas
-      if (!fsSync.existsSync(UPLOADS_DIR)) {
-        await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      // Créer le dossier d'uploads en attente s'il n'existe pas
+      if (!fsSync.existsSync(PENDING_UPLOADS_DIR)) {
+        await fs.mkdir(PENDING_UPLOADS_DIR, { recursive: true });
       }
-      cb(null, UPLOADS_DIR);
+      cb(null, PENDING_UPLOADS_DIR);
     } catch (error) {
       cb(error);
     }
@@ -447,21 +466,160 @@ const upload = multer({
   }
 });
 
-// Route pour uploader des photos
+// Route pour uploader des photos (en attente de validation)
 app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'Aucun fichier reçu' });
     }
 
+    const filesUploaded = req.files.length;
+    const filesList = req.files.map(f => f.filename).join('\n- ');
+
+    // Envoyer un email de notification si configuré
+    if (emailTransporter && process.env.NOTIFICATION_EMAIL) {
+      try {
+        await emailTransporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: process.env.NOTIFICATION_EMAIL,
+          subject: `🎉 Nouveaux médias uploadés - ${filesUploaded} fichier(s)`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #8b1538;">Nouveaux médias en attente de validation</h2>
+              <p>Un invité vient d'uploader <strong>${filesUploaded} fichier(s)</strong> qui sont maintenant en attente de validation.</p>
+
+              <h3 style="color: #d4af37;">Fichiers uploadés :</h3>
+              <ul style="list-style: none; padding: 0;">
+                ${req.files.map(f => `<li style="padding: 5px 0;">📸 ${f.filename}</li>`).join('')}
+              </ul>
+
+              <p style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-left: 4px solid #8b1538;">
+                <strong>Action requise :</strong> Connectez-vous à votre interface d'administration pour valider ou rejeter ces médias.
+              </p>
+
+              <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                Les fichiers sont stockés dans : media/Photos Invités/Pending/
+              </p>
+            </div>
+          `
+        });
+        console.log(`📧 Email de notification envoyé pour ${filesUploaded} fichier(s)`);
+      } catch (emailError) {
+        console.error('❌ Erreur lors de l\'envoi de l\'email:', emailError);
+        // On continue même si l'email échoue
+      }
+    }
+
     res.json({
       success: true,
       count: req.files.length,
-      message: `${req.files.length} fichier(s) uploadé(s) avec succès`
+      message: `${req.files.length} fichier(s) uploadé(s) avec succès. Ils seront visibles après validation.`
     });
   } catch (error) {
     console.error('Erreur lors de l\'upload:', error);
     res.status(500).json({ error: 'Erreur lors de l\'upload des fichiers' });
+  }
+});
+
+// Routes d'administration pour la validation des uploads
+
+// Lister les uploads en attente
+app.get('/api/admin/pending-uploads', requireAuth, async (req, res) => {
+  try {
+    // Créer le dossier s'il n'existe pas
+    if (!fsSync.existsSync(PENDING_UPLOADS_DIR)) {
+      await fs.mkdir(PENDING_UPLOADS_DIR, { recursive: true });
+      return res.json({ files: [] });
+    }
+
+    const files = await fs.readdir(PENDING_UPLOADS_DIR);
+    const pendingFiles = [];
+
+    for (const file of files) {
+      const filePath = path.join(PENDING_UPLOADS_DIR, file);
+      const stats = await fs.stat(filePath);
+      const ext = path.extname(file).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+      const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
+
+      if (isImage || isVideo) {
+        pendingFiles.push({
+          name: file,
+          path: `/media/Photos Invités/Pending/${file}`,
+          type: isImage ? 'image' : 'video',
+          size: stats.size,
+          uploadedAt: stats.mtime.toISOString()
+        });
+      }
+    }
+
+    // Trier par date d'upload (plus récent en premier)
+    pendingFiles.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+    res.json({ files: pendingFiles });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des uploads en attente:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des uploads' });
+  }
+});
+
+// Valider un upload (déplacer vers Uploads)
+app.post('/api/admin/approve-upload', requireAuth, async (req, res) => {
+  try {
+    const { filename } = req.body;
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Nom de fichier manquant' });
+    }
+
+    const sourcePath = path.join(PENDING_UPLOADS_DIR, filename);
+    const destPath = path.join(UPLOADS_DIR, filename);
+
+    // Vérifier que le fichier existe
+    if (!fsSync.existsSync(sourcePath)) {
+      return res.status(404).json({ error: 'Fichier non trouvé' });
+    }
+
+    // Créer le dossier de destination s'il n'existe pas
+    if (!fsSync.existsSync(UPLOADS_DIR)) {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    }
+
+    // Déplacer le fichier
+    await fs.rename(sourcePath, destPath);
+
+    console.log(`✅ Fichier validé et déplacé: ${filename}`);
+    res.json({ success: true, message: 'Fichier validé avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la validation:', error);
+    res.status(500).json({ error: 'Erreur lors de la validation du fichier' });
+  }
+});
+
+// Rejeter un upload (supprimer)
+app.post('/api/admin/reject-upload', requireAuth, async (req, res) => {
+  try {
+    const { filename } = req.body;
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Nom de fichier manquant' });
+    }
+
+    const filePath = path.join(PENDING_UPLOADS_DIR, filename);
+
+    // Vérifier que le fichier existe
+    if (!fsSync.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier non trouvé' });
+    }
+
+    // Supprimer le fichier
+    await fs.unlink(filePath);
+
+    console.log(`❌ Fichier rejeté et supprimé: ${filename}`);
+    res.json({ success: true, message: 'Fichier rejeté avec succès' });
+  } catch (error) {
+    console.error('Erreur lors du rejet:', error);
+    res.status(500).json({ error: 'Erreur lors du rejet du fichier' });
   }
 });
 

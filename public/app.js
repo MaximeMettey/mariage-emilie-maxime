@@ -549,4 +549,5 @@ if (typeof router !== 'undefined') {
     router.register('welcome', renderWelcomeView);
     router.register('gallery', renderGalleryView);
     router.register('providers', renderProvidersView);
+    router.register('admin', renderAdminView);
 }

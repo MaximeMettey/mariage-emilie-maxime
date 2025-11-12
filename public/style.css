@@ -1742,3 +1742,117 @@ body {
     fill: var(--color-black);
     margin-left: 4px;
 }
+
+/* ============================================
+   INTERFACE D'ADMINISTRATION
+   ============================================ */
+
+.pending-uploads-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(139, 21, 56, 0.3);
+}
+
+.pending-uploads-header h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    color: var(--color-burgundy-light);
+    font-weight: 600;
+}
+
+.pending-media-item {
+    position: relative;
+}
+
+.pending-media-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.7) 50%, transparent 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 16px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.pending-media-item:hover .pending-media-overlay {
+    opacity: 1;
+}
+
+.pending-media-info {
+    margin-bottom: 12px;
+}
+
+.pending-media-name {
+    color: var(--color-white);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pending-media-meta {
+    color: var(--color-gray);
+    font-size: 0.75rem;
+}
+
+.pending-media-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-approve,
+.btn-reject {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid;
+}
+
+.btn-approve {
+    background: rgba(34, 139, 34, 0.3);
+    border-color: #2d8b2d;
+    color: #90ee90;
+}
+
+.btn-approve:hover {
+    background: rgba(34, 139, 34, 0.5);
+    box-shadow: 0 0 15px rgba(34, 139, 34, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn-reject {
+    background: rgba(139, 21, 56, 0.3);
+    border-color: var(--color-burgundy);
+    color: var(--color-gold);
+}
+
+.btn-reject:hover {
+    background: rgba(139, 21, 56, 0.5);
+    box-shadow: var(--shadow-burgundy);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .pending-media-actions {
+        flex-direction: column;
+    }
+
+    .btn-approve,
+    .btn-reject {
+        width: 100%;
+    }
+}
