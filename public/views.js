@@ -213,8 +213,8 @@ async function renderGalleryView() {
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <p>Glissez vos photos ici ou cliquez pour sélectionner</p>
-                        <input type="file" id="fileInput" name="photos" multiple accept="image/*,video/*" style="display: none;">
+                        <p>Glissez vos photos/vidéos ou fichiers ZIP ici<br>ou cliquez pour sélectionner</p>
+                        <input type="file" id="fileInput" name="photos" multiple accept="image/*,video/*,.zip,application/zip,application/x-zip-compressed" style="display: none;">
                     </div>
 
                     <div id="filesList" class="files-list"></div>
@@ -320,7 +320,9 @@ function setupUploadModal() {
     // Ajouter des fichiers
     function addFiles(files) {
         files.forEach(file => {
-            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            if (file.type.startsWith('image/') || file.type.startsWith('video/') ||
+                file.type === 'application/zip' || file.type === 'application/x-zip-compressed' ||
+                file.name.toLowerCase().endsWith('.zip')) {
                 selectedFiles.push(file);
             }
         });
@@ -340,7 +342,14 @@ function setupUploadModal() {
 
             const fileName = document.createElement('div');
             fileName.className = 'file-item-name';
-            fileName.textContent = file.name;
+
+            // Ajouter une icône pour les fichiers ZIP
+            const isZip = file.name.toLowerCase().endsWith('.zip');
+            if (isZip) {
+                fileName.innerHTML = `📦 ${file.name} <span style="color: var(--color-gold); font-size: 0.8rem;">(sera extrait)</span>`;
+            } else {
+                fileName.textContent = file.name;
+            }
 
             const fileSize = document.createElement('div');
             fileSize.className = 'file-item-size';
@@ -642,24 +651,18 @@ async function loadPendingUploads() {
         container.innerHTML = html;
 
         // Ajouter les event listeners pour ouvrir la lightbox
-        console.log('🔍 Recherche des éléments .pending-media-clickable...');
         const mediaItems = document.querySelectorAll('.pending-media-clickable');
-        console.log(`✅ Trouvé ${mediaItems.length} éléments cliquables`);
 
-        mediaItems.forEach((item, idx) => {
+        mediaItems.forEach((item) => {
             const parentItem = item.closest('.pending-media-item');
             const index = parseInt(parentItem.dataset.mediaIndex);
-            console.log(`➕ Ajout listener sur média index ${index}`);
 
             item.addEventListener('click', (e) => {
-                console.log(`🖱️ Clic détecté sur média index ${index}`);
                 e.preventDefault();
                 e.stopPropagation();
                 openAdminLightbox(index);
             });
         });
-
-        console.log('✅ Event listeners attachés');
 
     } catch (error) {
         console.error('Erreur lors du chargement des uploads:', error);
