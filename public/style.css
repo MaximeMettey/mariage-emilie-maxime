@@ -1846,6 +1846,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 1;
 }
 
 .pending-media-clickable img,
@@ -1866,10 +1867,14 @@ body {
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
+    z-index: 2;
 }
 
 .pending-media-item:hover .pending-media-overlay {
     opacity: 1;
+}
+
+.pending-media-overlay * {
     pointer-events: auto;
 }
 
