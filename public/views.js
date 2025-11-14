@@ -594,13 +594,13 @@ async function loadPendingUploads() {
             const sizeStr = formatFileSize(file.size);
 
             html += `
-                <div class="media-item pending-media-item" data-filename="${file.name}">
+                <div class="media-item pending-media-item" data-filename="${file.name}" data-media-index="${index}">
                     <label class="media-checkbox" onclick="event.stopPropagation()">
                         <input type="checkbox" class="file-checkbox" data-filename="${file.name}" onchange="toggleFileSelection('${file.name}')">
                         <span class="media-checkmark"></span>
                     </label>
 
-                    <div class="pending-media-clickable" onclick="openAdminLightbox(${index})">
+                    <div class="pending-media-clickable">
                         ${file.type === 'image' ? `
                             <img src="${file.path}" alt="${file.name}">
                         ` : `
@@ -640,6 +640,16 @@ async function loadPendingUploads() {
 
         html += `</div>`;
         container.innerHTML = html;
+
+        // Ajouter les event listeners pour ouvrir la lightbox
+        const mediaItems = document.querySelectorAll('.pending-media-clickable');
+        mediaItems.forEach((item) => {
+            const parentItem = item.closest('.pending-media-item');
+            const index = parseInt(parentItem.dataset.mediaIndex);
+            item.addEventListener('click', () => {
+                openAdminLightbox(index);
+            });
+        });
 
     } catch (error) {
         console.error('Erreur lors du chargement des uploads:', error);
