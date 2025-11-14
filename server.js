@@ -580,7 +580,7 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 
               <h3 style="color: #d4af37;">Fichiers uploadés :</h3>
               <ul style="list-style: none; padding: 0;">
-                ${req.files.map(f => `<li style="padding: 5px 0;">📸 ${f.filename}</li>`).join('')}
+                ${allFiles.map(f => `<li style="padding: 5px 0;">📸 ${f}</li>`).join('')}
               </ul>
 
               <p style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-left: 4px solid #8b1538;">
@@ -602,8 +602,8 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 
     res.json({
       success: true,
-      count: req.files.length,
-      message: `${req.files.length} fichier(s) uploadé(s) avec succès. Ils seront visibles après validation.`
+      count: filesUploaded,
+      message: `${filesUploaded} fichier(s) uploadé(s) avec succès. Ils seront visibles après validation.`
     });
   } catch (error) {
     console.error('Erreur lors de l\'upload:', error);
