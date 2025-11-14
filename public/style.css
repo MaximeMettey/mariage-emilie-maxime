@@ -1831,13 +1831,28 @@ body {
 
 .pending-media-item {
     position: relative;
-    cursor: pointer;
     transition: var(--transition);
 }
 
 .pending-media-item:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);
+}
+
+.pending-media-clickable {
+    cursor: pointer;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pending-media-clickable img,
+.pending-media-clickable video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .pending-media-overlay {
@@ -1850,10 +1865,12 @@ body {
     padding: 16px;
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .pending-media-item:hover .pending-media-overlay {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .pending-media-info {

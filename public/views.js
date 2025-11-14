@@ -594,24 +594,26 @@ async function loadPendingUploads() {
             const sizeStr = formatFileSize(file.size);
 
             html += `
-                <div class="media-item pending-media-item" data-filename="${file.name}" onclick="openAdminLightbox(${index})">
+                <div class="media-item pending-media-item" data-filename="${file.name}">
                     <label class="media-checkbox" onclick="event.stopPropagation()">
                         <input type="checkbox" class="file-checkbox" data-filename="${file.name}" onchange="toggleFileSelection('${file.name}')">
                         <span class="media-checkmark"></span>
                     </label>
 
-                    ${file.type === 'image' ? `
-                        <img src="${file.path}" alt="${file.name}">
-                    ` : `
-                        <video src="${file.path}"></video>
-                        <div class="play-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                            </svg>
-                        </div>
-                    `}
+                    <div class="pending-media-clickable" onclick="openAdminLightbox(${index})">
+                        ${file.type === 'image' ? `
+                            <img src="${file.path}" alt="${file.name}">
+                        ` : `
+                            <video src="${file.path}"></video>
+                            <div class="play-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </div>
+                        `}
+                    </div>
 
-                    <div class="pending-media-overlay" onclick="event.stopPropagation()">
+                    <div class="pending-media-overlay">
                         <div class="pending-media-info">
                             <div class="pending-media-name">${file.name}</div>
                             <div class="pending-media-meta">${dateStr} • ${sizeStr}</div>
