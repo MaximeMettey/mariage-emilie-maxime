@@ -642,14 +642,24 @@ async function loadPendingUploads() {
         container.innerHTML = html;
 
         // Ajouter les event listeners pour ouvrir la lightbox
+        console.log('🔍 Recherche des éléments .pending-media-clickable...');
         const mediaItems = document.querySelectorAll('.pending-media-clickable');
-        mediaItems.forEach((item) => {
+        console.log(`✅ Trouvé ${mediaItems.length} éléments cliquables`);
+
+        mediaItems.forEach((item, idx) => {
             const parentItem = item.closest('.pending-media-item');
             const index = parseInt(parentItem.dataset.mediaIndex);
-            item.addEventListener('click', () => {
+            console.log(`➕ Ajout listener sur média index ${index}`);
+
+            item.addEventListener('click', (e) => {
+                console.log(`🖱️ Clic détecté sur média index ${index}`);
+                e.preventDefault();
+                e.stopPropagation();
                 openAdminLightbox(index);
             });
         });
+
+        console.log('✅ Event listeners attachés');
 
     } catch (error) {
         console.error('Erreur lors du chargement des uploads:', error);
