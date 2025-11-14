@@ -250,7 +250,8 @@ async function scanMediaDirectory() {
 
         // Deuxième niveau : dossiers de médias
         for (const subFolder of subFolders) {
-          if (subFolder.isDirectory()) {
+          // Exclure le dossier "Pending" de la galerie publique
+          if (subFolder.isDirectory() && subFolder.name !== 'Pending') {
             const subFolderPath = path.join(categoryPath, subFolder.name);
             const files = await fs.readdir(subFolderPath);
 

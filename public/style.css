@@ -829,6 +829,74 @@ body {
     text-align: center;
 }
 
+/* Lightbox Admin - Actions de validation/rejet */
+.admin-lightbox-actions {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 10;
+}
+
+.btn-admin-approve,
+.btn-admin-reject {
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn-admin-approve {
+    background: rgba(34, 139, 34, 0.2);
+    border-color: #2d8b2d;
+    color: #90ee90;
+}
+
+.btn-admin-approve:hover {
+    background: rgba(34, 139, 34, 0.4);
+    box-shadow: 0 0 20px rgba(34, 139, 34, 0.5);
+    transform: translateY(-2px);
+}
+
+.btn-admin-reject {
+    background: rgba(139, 21, 56, 0.2);
+    border-color: var(--color-burgundy);
+    color: var(--color-gold);
+}
+
+.btn-admin-reject:hover {
+    background: rgba(139, 21, 56, 0.4);
+    box-shadow: 0 0 20px rgba(139, 21, 56, 0.5);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .admin-lightbox-actions {
+        top: auto;
+        bottom: 100px;
+        left: 20px;
+        right: 20px;
+        transform: none;
+        flex-direction: column;
+    }
+
+    .btn-admin-approve,
+    .btn-admin-reject {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 /* Modale d'upload */
 .upload-modal {
     position: fixed;
@@ -1763,6 +1831,13 @@ body {
 
 .pending-media-item {
     position: relative;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.pending-media-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);
 }
 
 .pending-media-overlay {

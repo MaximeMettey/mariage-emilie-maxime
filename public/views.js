@@ -452,6 +452,51 @@ async function renderAdminView() {
                     </div>
                 </div>
             </main>
+
+            <!-- Lightbox Admin -->
+            <div id="adminLightbox" class="lightbox" style="display: none;">
+                <button id="closeAdminLightbox" class="lightbox-close" title="Fermer (Échap)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
+                <div class="admin-lightbox-actions">
+                    <button id="adminLightboxApprove" class="btn-admin-approve" title="Valider ce média">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Valider</span>
+                    </button>
+                    <button id="adminLightboxReject" class="btn-admin-reject" title="Rejeter ce média">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        <span>Rejeter</span>
+                    </button>
+                </div>
+
+                <button id="prevAdminMedia" class="lightbox-nav lightbox-prev" title="Précédent (←)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+
+                <button id="nextAdminMedia" class="lightbox-nav lightbox-next" title="Suivant (→)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+
+                <div class="lightbox-content">
+                    <img id="adminLightboxImage" class="lightbox-image" alt="" style="display: none;">
+                    <video id="adminLightboxVideo" class="lightbox-video" controls style="display: none;"></video>
+                </div>
+
+                <div id="adminLightboxInfo" class="lightbox-info"></div>
+            </div>
         </div>
     `;
 
@@ -463,10 +508,17 @@ async function renderAdminView() {
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => loadPendingUploads());
     }
+
+    // Gestion de la lightbox admin
+    setupAdminLightbox();
 }
 
 // État de sélection pour les opérations en lot
 let selectedFiles = new Set();
+
+// État de la lightbox admin
+let adminPendingMedia = [];
+let currentAdminMediaIndex = 0;
 
 // Charger les uploads en attente
 async function loadPendingUploads() {
@@ -478,6 +530,9 @@ async function loadPendingUploads() {
     try {
         const response = await fetch('/api/admin/pending-uploads');
         const data = await response.json();
+
+        // Stocker les médias pour la lightbox
+        adminPendingMedia = data.files;
 
         if (data.files.length === 0) {
             container.innerHTML = `
@@ -527,7 +582,7 @@ async function loadPendingUploads() {
             <div class="media-grid">
         `;
 
-        data.files.forEach(file => {
+        data.files.forEach((file, index) => {
             const dateStr = new Date(file.uploadedAt).toLocaleString('fr-FR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -539,8 +594,8 @@ async function loadPendingUploads() {
             const sizeStr = formatFileSize(file.size);
 
             html += `
-                <div class="media-item pending-media-item" data-filename="${file.name}">
-                    <label class="media-checkbox">
+                <div class="media-item pending-media-item" data-filename="${file.name}" onclick="openAdminLightbox(${index})">
+                    <label class="media-checkbox" onclick="event.stopPropagation()">
                         <input type="checkbox" class="file-checkbox" data-filename="${file.name}" onchange="toggleFileSelection('${file.name}')">
                         <span class="media-checkmark"></span>
                     </label>
@@ -556,19 +611,19 @@ async function loadPendingUploads() {
                         </div>
                     `}
 
-                    <div class="pending-media-overlay">
+                    <div class="pending-media-overlay" onclick="event.stopPropagation()">
                         <div class="pending-media-info">
                             <div class="pending-media-name">${file.name}</div>
                             <div class="pending-media-meta">${dateStr} • ${sizeStr}</div>
                         </div>
                         <div class="pending-media-actions">
-                            <button class="btn-approve" onclick="approveUpload('${file.name}')">
+                            <button class="btn-approve" onclick="event.stopPropagation(); approveUpload('${file.name}')">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Valider
                             </button>
-                            <button class="btn-reject" onclick="rejectUpload('${file.name}')">
+                            <button class="btn-reject" onclick="event.stopPropagation(); rejectUpload('${file.name}')">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="18" y1="6" x2="6" y2="18"></line>
                                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -773,4 +828,242 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// ===============================
+// Gestion de la lightbox admin
+// ===============================
+
+// Configuration de la lightbox admin
+function setupAdminLightbox() {
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox) return;
+
+    const closeBtn = document.getElementById('closeAdminLightbox');
+    const prevBtn = document.getElementById('prevAdminMedia');
+    const nextBtn = document.getElementById('nextAdminMedia');
+    const approveBtn = document.getElementById('adminLightboxApprove');
+    const rejectBtn = document.getElementById('adminLightboxReject');
+
+    // Bouton fermer
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeAdminLightbox);
+    }
+
+    // Navigation
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => navigateAdminMedia(-1));
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => navigateAdminMedia(1));
+    }
+
+    // Actions
+    if (approveBtn) {
+        approveBtn.addEventListener('click', approveCurrentAdminMedia);
+    }
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', rejectCurrentAdminMedia);
+    }
+
+    // Clavier
+    document.addEventListener('keydown', handleAdminLightboxKeyboard);
+
+    // Clic sur le fond pour fermer
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) {
+            closeAdminLightbox();
+        }
+    });
+}
+
+// Ouvrir la lightbox admin
+function openAdminLightbox(index) {
+    if (index < 0 || index >= adminPendingMedia.length) return;
+
+    currentAdminMediaIndex = index;
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox) return;
+
+    lightbox.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    showAdminMedia(index);
+}
+
+// Fermer la lightbox admin
+function closeAdminLightbox() {
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox) return;
+
+    lightbox.style.display = 'none';
+    document.body.style.overflow = 'auto';
+
+    // Arrêter la vidéo si en cours
+    const video = document.getElementById('adminLightboxVideo');
+    if (video) {
+        video.pause();
+        video.currentTime = 0;
+    }
+}
+
+// Afficher un média dans la lightbox
+function showAdminMedia(index) {
+    if (index < 0 || index >= adminPendingMedia.length) return;
+
+    const media = adminPendingMedia[index];
+    const image = document.getElementById('adminLightboxImage');
+    const video = document.getElementById('adminLightboxVideo');
+    const info = document.getElementById('adminLightboxInfo');
+
+    // Réinitialiser l'affichage
+    if (image) {
+        image.style.display = 'none';
+        image.src = '';
+    }
+    if (video) {
+        video.style.display = 'none';
+        video.pause();
+        video.src = '';
+    }
+
+    // Afficher le média approprié
+    if (media.type === 'image') {
+        if (image) {
+            image.src = media.path;
+            image.alt = media.name;
+            image.style.display = 'block';
+        }
+    } else if (media.type === 'video') {
+        if (video) {
+            video.src = media.path;
+            video.style.display = 'block';
+            video.load();
+        }
+    }
+
+    // Afficher les informations
+    if (info) {
+        const dateStr = new Date(media.uploadedAt).toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const sizeStr = formatFileSize(media.size);
+
+        info.innerHTML = `
+            <div>${media.name}</div>
+            <div style="font-size: 0.9rem; opacity: 0.8;">${dateStr} • ${sizeStr} • ${index + 1}/${adminPendingMedia.length}</div>
+        `;
+    }
+
+    // Gérer les boutons de navigation
+    const prevBtn = document.getElementById('prevAdminMedia');
+    const nextBtn = document.getElementById('nextAdminMedia');
+    if (prevBtn) prevBtn.style.display = index > 0 ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = index < adminPendingMedia.length - 1 ? 'flex' : 'none';
+}
+
+// Naviguer dans les médias
+function navigateAdminMedia(direction) {
+    const newIndex = currentAdminMediaIndex + direction;
+    if (newIndex >= 0 && newIndex < adminPendingMedia.length) {
+        currentAdminMediaIndex = newIndex;
+        showAdminMedia(newIndex);
+    }
+}
+
+// Gestion du clavier
+function handleAdminLightboxKeyboard(e) {
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox || lightbox.style.display === 'none') return;
+
+    switch(e.key) {
+        case 'Escape':
+            closeAdminLightbox();
+            break;
+        case 'ArrowLeft':
+            navigateAdminMedia(-1);
+            break;
+        case 'ArrowRight':
+            navigateAdminMedia(1);
+            break;
+    }
+}
+
+// Valider le média courant depuis la lightbox
+async function approveCurrentAdminMedia() {
+    if (currentAdminMediaIndex < 0 || currentAdminMediaIndex >= adminPendingMedia.length) return;
+
+    const media = adminPendingMedia[currentAdminMediaIndex];
+    const nextIndex = currentAdminMediaIndex;
+
+    try {
+        const response = await fetch('/api/admin/approve-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: media.name })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Fermer la lightbox et recharger
+            closeAdminLightbox();
+            await loadPendingUploads();
+
+            // Rouvrir la lightbox sur le média suivant s'il existe
+            if (nextIndex < adminPendingMedia.length) {
+                setTimeout(() => openAdminLightbox(nextIndex), 100);
+            }
+        } else {
+            throw new Error(result.error || 'Erreur lors de la validation');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de la validation');
+    }
+}
+
+// Rejeter le média courant depuis la lightbox
+async function rejectCurrentAdminMedia() {
+    if (currentAdminMediaIndex < 0 || currentAdminMediaIndex >= adminPendingMedia.length) return;
+
+    const media = adminPendingMedia[currentAdminMediaIndex];
+
+    if (!confirm(`Rejeter et supprimer définitivement ce fichier ?\n${media.name}\n\nCette action est irréversible.`)) return;
+
+    const nextIndex = currentAdminMediaIndex;
+
+    try {
+        const response = await fetch('/api/admin/reject-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: media.name })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Fermer la lightbox et recharger
+            closeAdminLightbox();
+            await loadPendingUploads();
+
+            // Rouvrir la lightbox sur le média suivant s'il existe
+            if (nextIndex < adminPendingMedia.length) {
+                setTimeout(() => openAdminLightbox(nextIndex), 100);
+            }
+        } else {
+            throw new Error(result.error || 'Erreur lors du rejet');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors du rejet');
+    }
 }
