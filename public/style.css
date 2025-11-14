@@ -1874,7 +1874,7 @@ body {
     opacity: 1;
 }
 
-.pending-media-overlay * {
+.pending-media-overlay button {
     pointer-events: auto;
 }
 
