@@ -647,6 +647,99 @@ app.post('/api/admin/reject-upload', requireAdmin, async (req, res) => {
   }
 });
 
+// Valider plusieurs uploads en lot
+app.post('/api/admin/batch-approve', requireAdmin, async (req, res) => {
+  try {
+    const { filenames } = req.body;
+
+    if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+      return res.status(400).json({ error: 'Liste de fichiers manquante ou invalide' });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const filename of filenames) {
+      try {
+        const sourcePath = path.join(PENDING_UPLOADS_DIR, filename);
+        const destPath = path.join(UPLOADS_DIR, filename);
+
+        // Vérifier que le fichier existe
+        if (!fsSync.existsSync(sourcePath)) {
+          results.failed.push({ filename, error: 'Fichier non trouvé' });
+          continue;
+        }
+
+        // Déplacer le fichier
+        await fs.rename(sourcePath, destPath);
+        results.success.push(filename);
+        console.log(`✅ Fichier validé (lot): ${filename}`);
+      } catch (error) {
+        results.failed.push({ filename, error: error.message });
+        console.error(`❌ Erreur lors de la validation de ${filename}:`, error);
+      }
+    }
+
+    const message = `${results.success.length} fichier(s) validé(s), ${results.failed.length} échec(s)`;
+    res.json({
+      success: true,
+      message,
+      results
+    });
+  } catch (error) {
+    console.error('Erreur lors de la validation en lot:', error);
+    res.status(500).json({ error: 'Erreur lors de la validation en lot' });
+  }
+});
+
+// Rejeter plusieurs uploads en lot (supprimer)
+app.post('/api/admin/batch-reject', requireAdmin, async (req, res) => {
+  try {
+    const { filenames } = req.body;
+
+    if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+      return res.status(400).json({ error: 'Liste de fichiers manquante ou invalide' });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const filename of filenames) {
+      try {
+        const filePath = path.join(PENDING_UPLOADS_DIR, filename);
+
+        // Vérifier que le fichier existe
+        if (!fsSync.existsSync(filePath)) {
+          results.failed.push({ filename, error: 'Fichier non trouvé' });
+          continue;
+        }
+
+        // Supprimer le fichier
+        await fs.unlink(filePath);
+        results.success.push(filename);
+        console.log(`❌ Fichier rejeté (lot): ${filename}`);
+      } catch (error) {
+        results.failed.push({ filename, error: error.message });
+        console.error(`❌ Erreur lors du rejet de ${filename}:`, error);
+      }
+    }
+
+    const message = `${results.success.length} fichier(s) rejeté(s), ${results.failed.length} échec(s)`;
+    res.json({
+      success: true,
+      message,
+      results
+    });
+  } catch (error) {
+    console.error('Erreur lors du rejet en lot:', error);
+    res.status(500).json({ error: 'Erreur lors du rejet en lot' });
+  }
+});
+
 // Route de fallback pour les routes SPA (doit être en dernier)
 // Renvoie index.html pour toutes les routes non-API afin que le router client puisse gérer la navigation
 app.get('*', (req, res) => {

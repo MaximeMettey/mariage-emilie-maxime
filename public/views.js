@@ -465,9 +465,15 @@ async function renderAdminView() {
     }
 }
 
+// État de sélection pour les opérations en lot
+let selectedFiles = new Set();
+
 // Charger les uploads en attente
 async function loadPendingUploads() {
     const container = document.getElementById('pendingUploadsContainer');
+
+    // Réinitialiser la sélection
+    selectedFiles.clear();
 
     try {
         const response = await fetch('/api/admin/pending-uploads');
@@ -491,6 +497,33 @@ async function loadPendingUploads() {
             <div class="pending-uploads-header">
                 <h2>${data.files.length} fichier(s) en attente de validation</h2>
             </div>
+
+            <div class="batch-actions-bar">
+                <div class="batch-select-all">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">Tout sélectionner</span>
+                    </label>
+                    <span id="selectionCounter" class="selection-counter">0 sélectionné(s)</span>
+                </div>
+                <div class="batch-actions-buttons">
+                    <button id="batchApproveBtn" class="btn-batch-approve" onclick="batchApprove()" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Valider la sélection
+                    </button>
+                    <button id="batchRejectBtn" class="btn-batch-reject" onclick="batchReject()" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Rejeter la sélection
+                    </button>
+                </div>
+            </div>
+
             <div class="media-grid">
         `;
 
@@ -507,6 +540,11 @@ async function loadPendingUploads() {
 
             html += `
                 <div class="media-item pending-media-item" data-filename="${file.name}">
+                    <label class="media-checkbox">
+                        <input type="checkbox" class="file-checkbox" data-filename="${file.name}" onchange="toggleFileSelection('${file.name}')">
+                        <span class="media-checkmark"></span>
+                    </label>
+
                     ${file.type === 'image' ? `
                         <img src="${file.path}" alt="${file.name}">
                     ` : `
@@ -553,6 +591,124 @@ async function loadPendingUploads() {
                 <p>Erreur lors du chargement des uploads en attente</p>
             </div>
         `;
+    }
+}
+
+// Gérer la sélection/désélection d'un fichier
+function toggleFileSelection(filename) {
+    if (selectedFiles.has(filename)) {
+        selectedFiles.delete(filename);
+    } else {
+        selectedFiles.add(filename);
+    }
+    updateBatchUI();
+}
+
+// Tout sélectionner / Tout désélectionner
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+
+    selectedFiles.clear();
+
+    if (selectAllCheckbox.checked) {
+        fileCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            selectedFiles.add(checkbox.dataset.filename);
+        });
+    } else {
+        fileCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    }
+
+    updateBatchUI();
+}
+
+// Mettre à jour l'interface des actions en lot
+function updateBatchUI() {
+    const counter = document.getElementById('selectionCounter');
+    const batchApproveBtn = document.getElementById('batchApproveBtn');
+    const batchRejectBtn = document.getElementById('batchRejectBtn');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+
+    const selectedCount = selectedFiles.size;
+
+    // Mettre à jour le compteur
+    if (counter) {
+        counter.textContent = `${selectedCount} sélectionné(s)`;
+    }
+
+    // Activer/désactiver les boutons d'action
+    const hasSelection = selectedCount > 0;
+    if (batchApproveBtn) batchApproveBtn.disabled = !hasSelection;
+    if (batchRejectBtn) batchRejectBtn.disabled = !hasSelection;
+
+    // Mettre à jour l'état du "Tout sélectionner"
+    if (selectAllCheckbox && fileCheckboxes.length > 0) {
+        selectAllCheckbox.checked = selectedCount === fileCheckboxes.length;
+        selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < fileCheckboxes.length;
+    }
+}
+
+// Valider la sélection en lot
+async function batchApprove() {
+    const count = selectedFiles.size;
+    if (count === 0) return;
+
+    if (!confirm(`Valider ${count} fichier(s) sélectionné(s) ?`)) return;
+
+    try {
+        const response = await fetch('/api/admin/batch-approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filenames: Array.from(selectedFiles) })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message);
+            await loadPendingUploads();
+        } else {
+            throw new Error(result.error || 'Erreur lors de la validation en lot');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de la validation en lot');
+    }
+}
+
+// Rejeter la sélection en lot
+async function batchReject() {
+    const count = selectedFiles.size;
+    if (count === 0) return;
+
+    if (!confirm(`Rejeter et supprimer définitivement ${count} fichier(s) sélectionné(s) ?\n\nCette action est irréversible.`)) return;
+
+    try {
+        const response = await fetch('/api/admin/batch-reject', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filenames: Array.from(selectedFiles) })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message);
+            await loadPendingUploads();
+        } else {
+            throw new Error(result.error || 'Erreur lors du rejet en lot');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors du rejet en lot');
     }
 }
 
