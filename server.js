@@ -15,6 +15,7 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
+const ADMIN_CODE = process.env.ADMIN_CODE || 'admin2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
 const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
 const MUSIC_DIR = path.join(__dirname, 'music');
@@ -61,6 +62,15 @@ const requireAuth = (req, res, next) => {
   }
 };
 
+// Middleware d'authentification admin
+const requireAdmin = (req, res, next) => {
+  if (req.session.authenticated && req.session.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Accès refusé - Droits administrateur requis' });
+  }
+};
+
 // Servir les fichiers statiques
 app.use(express.static('public'));
 app.use('/media', requireAuth, express.static(MEDIA_DIR));
@@ -71,10 +81,20 @@ app.use('/music', requireAuth, express.static(MUSIC_DIR));
 app.post('/api/login', (req, res) => {
   const { code } = req.body;
 
-  if (code === ACCESS_CODE) {
+  // Vérifier si c'est un code admin
+  if (code === ADMIN_CODE) {
     req.session.authenticated = true;
-    res.json({ success: true });
-  } else {
+    req.session.role = 'admin';
+    res.json({ success: true, role: 'admin' });
+  }
+  // Vérifier si c'est un code invité
+  else if (code === ACCESS_CODE) {
+    req.session.authenticated = true;
+    req.session.role = 'guest';
+    res.json({ success: true, role: 'guest' });
+  }
+  // Code incorrect
+  else {
     res.status(401).json({ error: 'Code d\'accès incorrect' });
   }
 });
@@ -86,6 +106,10 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/check-auth', (req, res) => {
   res.json({ authenticated: !!req.session.authenticated });
+});
+
+app.get('/api/user-role', requireAuth, (req, res) => {
+  res.json({ role: req.session.role || 'guest' });
 });
 
 // Fonction pour extraire la date EXIF d'une image
@@ -524,7 +548,7 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 // Routes d'administration pour la validation des uploads
 
 // Lister les uploads en attente
-app.get('/api/admin/pending-uploads', requireAuth, async (req, res) => {
+app.get('/api/admin/pending-uploads', requireAdmin, async (req, res) => {
   try {
     // Créer le dossier s'il n'existe pas
     if (!fsSync.existsSync(PENDING_UPLOADS_DIR)) {
@@ -564,7 +588,7 @@ app.get('/api/admin/pending-uploads', requireAuth, async (req, res) => {
 });
 
 // Valider un upload (déplacer vers Uploads)
-app.post('/api/admin/approve-upload', requireAuth, async (req, res) => {
+app.post('/api/admin/approve-upload', requireAdmin, async (req, res) => {
   try {
     const { filename } = req.body;
 
@@ -597,7 +621,7 @@ app.post('/api/admin/approve-upload', requireAuth, async (req, res) => {
 });
 
 // Rejeter un upload (supprimer)
-app.post('/api/admin/reject-upload', requireAuth, async (req, res) => {
+app.post('/api/admin/reject-upload', requireAdmin, async (req, res) => {
   try {
     const { filename } = req.body;
 

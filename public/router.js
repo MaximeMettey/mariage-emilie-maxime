@@ -49,6 +49,14 @@ class Router {
             route = 'admin';
         }
 
+        // Vérifier l'accès admin
+        if (route === 'admin' && window.userRole !== 'admin') {
+            // Rediriger vers l'accueil si pas admin
+            alert('Accès refusé - Vous devez être administrateur pour accéder à cette page.');
+            this.navigate('welcome');
+            return;
+        }
+
         // Mettre à jour la classe active dans le menu
         document.querySelectorAll('.nav-link').forEach(link => {
             const linkRoute = link.getAttribute('data-route');
