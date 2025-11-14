@@ -11,6 +11,7 @@ const sharp = require('sharp');
 const crypto = require('crypto');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const AdmZip = require('adm-zip');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -250,7 +251,8 @@ async function scanMediaDirectory() {
 
         // Deuxième niveau : dossiers de médias
         for (const subFolder of subFolders) {
-          if (subFolder.isDirectory()) {
+          // Exclure le dossier "Pending" de la galerie publique
+          if (subFolder.isDirectory() && subFolder.name !== 'Pending') {
             const subFolderPath = path.join(categoryPath, subFolder.name);
             const files = await fs.readdir(subFolderPath);
 
@@ -474,21 +476,58 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB max par fichier
+    fileSize: 200 * 1024 * 1024, // 200MB max par fichier (augmenté pour les ZIP)
     files: 20 // 20 fichiers max par upload
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|mp4|webm|mov|avi|mkv/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|mp4|webm|mov|avi|mkv|zip/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed';
 
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Seuls les images et vidéos sont autorisées'));
+      cb(new Error('Seuls les images, vidéos et fichiers ZIP sont autorisés'));
     }
   }
 });
+
+// Fonction pour extraire les fichiers ZIP
+async function extractZipFiles(zipPath, destDir) {
+  const extractedFiles = [];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.mkv'];
+
+  try {
+    const zip = new AdmZip(zipPath);
+    const zipEntries = zip.getEntries();
+
+    for (const entry of zipEntries) {
+      // Ignorer les dossiers et fichiers cachés
+      if (entry.isDirectory || entry.entryName.startsWith('__MACOSX') || path.basename(entry.entryName).startsWith('.')) {
+        continue;
+      }
+
+      const ext = path.extname(entry.entryName).toLowerCase();
+      if (allowedExtensions.includes(ext)) {
+        // Générer un nom unique
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const baseName = path.basename(entry.entryName, ext);
+        const newFileName = `${baseName}-${uniqueSuffix}${ext}`;
+        const destPath = path.join(destDir, newFileName);
+
+        // Extraire le fichier
+        await fs.writeFile(destPath, entry.getData());
+        extractedFiles.push(newFileName);
+        console.log(`📦 Extrait depuis ZIP: ${newFileName}`);
+      }
+    }
+
+    return extractedFiles;
+  } catch (error) {
+    console.error('Erreur lors de l\'extraction du ZIP:', error);
+    throw error;
+  }
+}
 
 // Route pour uploader des photos (en attente de validation)
 app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (req, res) => {
@@ -497,8 +536,35 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
       return res.status(400).json({ error: 'Aucun fichier reçu' });
     }
 
-    const filesUploaded = req.files.length;
-    const filesList = req.files.map(f => f.filename).join('\n- ');
+    // Traiter les fichiers ZIP
+    let totalFilesCount = 0;
+    const allFiles = [];
+
+    for (const file of req.files) {
+      const ext = path.extname(file.filename).toLowerCase();
+
+      if (ext === '.zip') {
+        try {
+          console.log(`📦 Traitement du fichier ZIP: ${file.filename}`);
+          const extractedFiles = await extractZipFiles(file.path, PENDING_UPLOADS_DIR);
+          totalFilesCount += extractedFiles.length;
+          allFiles.push(...extractedFiles);
+
+          // Supprimer le fichier ZIP après extraction
+          await fs.unlink(file.path);
+          console.log(`🗑️  ZIP supprimé: ${file.filename}`);
+        } catch (error) {
+          console.error(`❌ Erreur lors du traitement du ZIP ${file.filename}:`, error);
+          // Continuer avec les autres fichiers
+        }
+      } else {
+        totalFilesCount++;
+        allFiles.push(file.filename);
+      }
+    }
+
+    const filesUploaded = totalFilesCount;
+    const filesList = allFiles.join('\n- ');
 
     // Envoyer un email de notification si configuré
     if (emailTransporter && process.env.NOTIFICATION_EMAIL) {
@@ -514,7 +580,7 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 
               <h3 style="color: #d4af37;">Fichiers uploadés :</h3>
               <ul style="list-style: none; padding: 0;">
-                ${req.files.map(f => `<li style="padding: 5px 0;">📸 ${f.filename}</li>`).join('')}
+                ${allFiles.map(f => `<li style="padding: 5px 0;">📸 ${f}</li>`).join('')}
               </ul>
 
               <p style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-left: 4px solid #8b1538;">
@@ -536,8 +602,8 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 
     res.json({
       success: true,
-      count: req.files.length,
-      message: `${req.files.length} fichier(s) uploadé(s) avec succès. Ils seront visibles après validation.`
+      count: filesUploaded,
+      message: `${filesUploaded} fichier(s) uploadé(s) avec succès. Ils seront visibles après validation.`
     });
   } catch (error) {
     console.error('Erreur lors de l\'upload:', error);
@@ -644,6 +710,99 @@ app.post('/api/admin/reject-upload', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Erreur lors du rejet:', error);
     res.status(500).json({ error: 'Erreur lors du rejet du fichier' });
+  }
+});
+
+// Valider plusieurs uploads en lot
+app.post('/api/admin/batch-approve', requireAdmin, async (req, res) => {
+  try {
+    const { filenames } = req.body;
+
+    if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+      return res.status(400).json({ error: 'Liste de fichiers manquante ou invalide' });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const filename of filenames) {
+      try {
+        const sourcePath = path.join(PENDING_UPLOADS_DIR, filename);
+        const destPath = path.join(UPLOADS_DIR, filename);
+
+        // Vérifier que le fichier existe
+        if (!fsSync.existsSync(sourcePath)) {
+          results.failed.push({ filename, error: 'Fichier non trouvé' });
+          continue;
+        }
+
+        // Déplacer le fichier
+        await fs.rename(sourcePath, destPath);
+        results.success.push(filename);
+        console.log(`✅ Fichier validé (lot): ${filename}`);
+      } catch (error) {
+        results.failed.push({ filename, error: error.message });
+        console.error(`❌ Erreur lors de la validation de ${filename}:`, error);
+      }
+    }
+
+    const message = `${results.success.length} fichier(s) validé(s), ${results.failed.length} échec(s)`;
+    res.json({
+      success: true,
+      message,
+      results
+    });
+  } catch (error) {
+    console.error('Erreur lors de la validation en lot:', error);
+    res.status(500).json({ error: 'Erreur lors de la validation en lot' });
+  }
+});
+
+// Rejeter plusieurs uploads en lot (supprimer)
+app.post('/api/admin/batch-reject', requireAdmin, async (req, res) => {
+  try {
+    const { filenames } = req.body;
+
+    if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+      return res.status(400).json({ error: 'Liste de fichiers manquante ou invalide' });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const filename of filenames) {
+      try {
+        const filePath = path.join(PENDING_UPLOADS_DIR, filename);
+
+        // Vérifier que le fichier existe
+        if (!fsSync.existsSync(filePath)) {
+          results.failed.push({ filename, error: 'Fichier non trouvé' });
+          continue;
+        }
+
+        // Supprimer le fichier
+        await fs.unlink(filePath);
+        results.success.push(filename);
+        console.log(`❌ Fichier rejeté (lot): ${filename}`);
+      } catch (error) {
+        results.failed.push({ filename, error: error.message });
+        console.error(`❌ Erreur lors du rejet de ${filename}:`, error);
+      }
+    }
+
+    const message = `${results.success.length} fichier(s) rejeté(s), ${results.failed.length} échec(s)`;
+    res.json({
+      success: true,
+      message,
+      results
+    });
+  } catch (error) {
+    console.error('Erreur lors du rejet en lot:', error);
+    res.status(500).json({ error: 'Erreur lors du rejet en lot' });
   }
 });
 

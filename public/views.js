@@ -213,8 +213,8 @@ async function renderGalleryView() {
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <p>Glissez vos photos ici ou cliquez pour sélectionner</p>
-                        <input type="file" id="fileInput" name="photos" multiple accept="image/*,video/*" style="display: none;">
+                        <p>Glissez vos photos/vidéos ou fichiers ZIP ici<br>ou cliquez pour sélectionner</p>
+                        <input type="file" id="fileInput" name="photos" multiple accept="image/*,video/*,.zip,application/zip,application/x-zip-compressed" style="display: none;">
                     </div>
 
                     <div id="filesList" class="files-list"></div>
@@ -320,7 +320,9 @@ function setupUploadModal() {
     // Ajouter des fichiers
     function addFiles(files) {
         files.forEach(file => {
-            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            if (file.type.startsWith('image/') || file.type.startsWith('video/') ||
+                file.type === 'application/zip' || file.type === 'application/x-zip-compressed' ||
+                file.name.toLowerCase().endsWith('.zip')) {
                 selectedFiles.push(file);
             }
         });
@@ -340,7 +342,14 @@ function setupUploadModal() {
 
             const fileName = document.createElement('div');
             fileName.className = 'file-item-name';
-            fileName.textContent = file.name;
+
+            // Ajouter une icône pour les fichiers ZIP
+            const isZip = file.name.toLowerCase().endsWith('.zip');
+            if (isZip) {
+                fileName.innerHTML = `📦 ${file.name} <span style="color: var(--color-gold); font-size: 0.8rem;">(sera extrait)</span>`;
+            } else {
+                fileName.textContent = file.name;
+            }
 
             const fileSize = document.createElement('div');
             fileSize.className = 'file-item-size';
@@ -452,6 +461,51 @@ async function renderAdminView() {
                     </div>
                 </div>
             </main>
+
+            <!-- Lightbox Admin -->
+            <div id="adminLightbox" class="lightbox" style="display: none;">
+                <button id="closeAdminLightbox" class="lightbox-close" title="Fermer (Échap)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
+                <div class="admin-lightbox-actions">
+                    <button id="adminLightboxApprove" class="btn-admin-approve" title="Valider ce média">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Valider</span>
+                    </button>
+                    <button id="adminLightboxReject" class="btn-admin-reject" title="Rejeter ce média">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        <span>Rejeter</span>
+                    </button>
+                </div>
+
+                <button id="prevAdminMedia" class="lightbox-nav lightbox-prev" title="Précédent (←)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+
+                <button id="nextAdminMedia" class="lightbox-nav lightbox-next" title="Suivant (→)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+
+                <div class="lightbox-content">
+                    <img id="adminLightboxImage" class="lightbox-image" alt="" style="display: none;">
+                    <video id="adminLightboxVideo" class="lightbox-video" controls style="display: none;"></video>
+                </div>
+
+                <div id="adminLightboxInfo" class="lightbox-info"></div>
+            </div>
         </div>
     `;
 
@@ -463,15 +517,31 @@ async function renderAdminView() {
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => loadPendingUploads());
     }
+
+    // Gestion de la lightbox admin
+    setupAdminLightbox();
 }
+
+// État de sélection pour les opérations en lot
+let selectedFiles = new Set();
+
+// État de la lightbox admin
+let adminPendingMedia = [];
+let currentAdminMediaIndex = 0;
 
 // Charger les uploads en attente
 async function loadPendingUploads() {
     const container = document.getElementById('pendingUploadsContainer');
 
+    // Réinitialiser la sélection
+    selectedFiles.clear();
+
     try {
         const response = await fetch('/api/admin/pending-uploads');
         const data = await response.json();
+
+        // Stocker les médias pour la lightbox
+        adminPendingMedia = data.files;
 
         if (data.files.length === 0) {
             container.innerHTML = `
@@ -491,10 +561,37 @@ async function loadPendingUploads() {
             <div class="pending-uploads-header">
                 <h2>${data.files.length} fichier(s) en attente de validation</h2>
             </div>
+
+            <div class="batch-actions-bar">
+                <div class="batch-select-all">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">Tout sélectionner</span>
+                    </label>
+                    <span id="selectionCounter" class="selection-counter">0 sélectionné(s)</span>
+                </div>
+                <div class="batch-actions-buttons">
+                    <button id="batchApproveBtn" class="btn-batch-approve" onclick="batchApprove()" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Valider la sélection
+                    </button>
+                    <button id="batchRejectBtn" class="btn-batch-reject" onclick="batchReject()" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Rejeter la sélection
+                    </button>
+                </div>
+            </div>
+
             <div class="media-grid">
         `;
 
-        data.files.forEach(file => {
+        data.files.forEach((file, index) => {
             const dateStr = new Date(file.uploadedAt).toLocaleString('fr-FR', {
                 day: '2-digit',
                 month: '2-digit',
@@ -506,17 +603,24 @@ async function loadPendingUploads() {
             const sizeStr = formatFileSize(file.size);
 
             html += `
-                <div class="media-item pending-media-item" data-filename="${file.name}">
-                    ${file.type === 'image' ? `
-                        <img src="${file.path}" alt="${file.name}">
-                    ` : `
-                        <video src="${file.path}"></video>
-                        <div class="play-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                            </svg>
-                        </div>
-                    `}
+                <div class="media-item pending-media-item" data-filename="${file.name}" data-media-index="${index}">
+                    <label class="media-checkbox" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="file-checkbox" data-filename="${file.name}" onchange="toggleFileSelection('${file.name}')">
+                        <span class="media-checkmark"></span>
+                    </label>
+
+                    <div class="pending-media-clickable">
+                        ${file.type === 'image' ? `
+                            <img src="${file.path}" alt="${file.name}">
+                        ` : `
+                            <video src="${file.path}"></video>
+                            <div class="play-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </div>
+                        `}
+                    </div>
 
                     <div class="pending-media-overlay">
                         <div class="pending-media-info">
@@ -524,13 +628,13 @@ async function loadPendingUploads() {
                             <div class="pending-media-meta">${dateStr} • ${sizeStr}</div>
                         </div>
                         <div class="pending-media-actions">
-                            <button class="btn-approve" onclick="approveUpload('${file.name}')">
+                            <button class="btn-approve" onclick="event.stopPropagation(); approveUpload('${file.name}')">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Valider
                             </button>
-                            <button class="btn-reject" onclick="rejectUpload('${file.name}')">
+                            <button class="btn-reject" onclick="event.stopPropagation(); rejectUpload('${file.name}')">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="18" y1="6" x2="6" y2="18"></line>
                                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -546,6 +650,20 @@ async function loadPendingUploads() {
         html += `</div>`;
         container.innerHTML = html;
 
+        // Ajouter les event listeners pour ouvrir la lightbox
+        const mediaItems = document.querySelectorAll('.pending-media-clickable');
+
+        mediaItems.forEach((item) => {
+            const parentItem = item.closest('.pending-media-item');
+            const index = parseInt(parentItem.dataset.mediaIndex);
+
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openAdminLightbox(index);
+            });
+        });
+
     } catch (error) {
         console.error('Erreur lors du chargement des uploads:', error);
         container.innerHTML = `
@@ -553,6 +671,124 @@ async function loadPendingUploads() {
                 <p>Erreur lors du chargement des uploads en attente</p>
             </div>
         `;
+    }
+}
+
+// Gérer la sélection/désélection d'un fichier
+function toggleFileSelection(filename) {
+    if (selectedFiles.has(filename)) {
+        selectedFiles.delete(filename);
+    } else {
+        selectedFiles.add(filename);
+    }
+    updateBatchUI();
+}
+
+// Tout sélectionner / Tout désélectionner
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+
+    selectedFiles.clear();
+
+    if (selectAllCheckbox.checked) {
+        fileCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            selectedFiles.add(checkbox.dataset.filename);
+        });
+    } else {
+        fileCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    }
+
+    updateBatchUI();
+}
+
+// Mettre à jour l'interface des actions en lot
+function updateBatchUI() {
+    const counter = document.getElementById('selectionCounter');
+    const batchApproveBtn = document.getElementById('batchApproveBtn');
+    const batchRejectBtn = document.getElementById('batchRejectBtn');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+
+    const selectedCount = selectedFiles.size;
+
+    // Mettre à jour le compteur
+    if (counter) {
+        counter.textContent = `${selectedCount} sélectionné(s)`;
+    }
+
+    // Activer/désactiver les boutons d'action
+    const hasSelection = selectedCount > 0;
+    if (batchApproveBtn) batchApproveBtn.disabled = !hasSelection;
+    if (batchRejectBtn) batchRejectBtn.disabled = !hasSelection;
+
+    // Mettre à jour l'état du "Tout sélectionner"
+    if (selectAllCheckbox && fileCheckboxes.length > 0) {
+        selectAllCheckbox.checked = selectedCount === fileCheckboxes.length;
+        selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < fileCheckboxes.length;
+    }
+}
+
+// Valider la sélection en lot
+async function batchApprove() {
+    const count = selectedFiles.size;
+    if (count === 0) return;
+
+    if (!confirm(`Valider ${count} fichier(s) sélectionné(s) ?`)) return;
+
+    try {
+        const response = await fetch('/api/admin/batch-approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filenames: Array.from(selectedFiles) })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message);
+            await loadPendingUploads();
+        } else {
+            throw new Error(result.error || 'Erreur lors de la validation en lot');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de la validation en lot');
+    }
+}
+
+// Rejeter la sélection en lot
+async function batchReject() {
+    const count = selectedFiles.size;
+    if (count === 0) return;
+
+    if (!confirm(`Rejeter et supprimer définitivement ${count} fichier(s) sélectionné(s) ?\n\nCette action est irréversible.`)) return;
+
+    try {
+        const response = await fetch('/api/admin/batch-reject', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filenames: Array.from(selectedFiles) })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message);
+            await loadPendingUploads();
+        } else {
+            throw new Error(result.error || 'Erreur lors du rejet en lot');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors du rejet en lot');
     }
 }
 
@@ -617,4 +853,242 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// ===============================
+// Gestion de la lightbox admin
+// ===============================
+
+// Configuration de la lightbox admin
+function setupAdminLightbox() {
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox) return;
+
+    const closeBtn = document.getElementById('closeAdminLightbox');
+    const prevBtn = document.getElementById('prevAdminMedia');
+    const nextBtn = document.getElementById('nextAdminMedia');
+    const approveBtn = document.getElementById('adminLightboxApprove');
+    const rejectBtn = document.getElementById('adminLightboxReject');
+
+    // Bouton fermer
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeAdminLightbox);
+    }
+
+    // Navigation
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => navigateAdminMedia(-1));
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => navigateAdminMedia(1));
+    }
+
+    // Actions
+    if (approveBtn) {
+        approveBtn.addEventListener('click', approveCurrentAdminMedia);
+    }
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', rejectCurrentAdminMedia);
+    }
+
+    // Clavier
+    document.addEventListener('keydown', handleAdminLightboxKeyboard);
+
+    // Clic sur le fond pour fermer
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) {
+            closeAdminLightbox();
+        }
+    });
+}
+
+// Ouvrir la lightbox admin
+function openAdminLightbox(index) {
+    if (index < 0 || index >= adminPendingMedia.length) return;
+
+    currentAdminMediaIndex = index;
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox) return;
+
+    lightbox.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    showAdminMedia(index);
+}
+
+// Fermer la lightbox admin
+function closeAdminLightbox() {
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox) return;
+
+    lightbox.style.display = 'none';
+    document.body.style.overflow = 'auto';
+
+    // Arrêter la vidéo si en cours
+    const video = document.getElementById('adminLightboxVideo');
+    if (video) {
+        video.pause();
+        video.currentTime = 0;
+    }
+}
+
+// Afficher un média dans la lightbox
+function showAdminMedia(index) {
+    if (index < 0 || index >= adminPendingMedia.length) return;
+
+    const media = adminPendingMedia[index];
+    const image = document.getElementById('adminLightboxImage');
+    const video = document.getElementById('adminLightboxVideo');
+    const info = document.getElementById('adminLightboxInfo');
+
+    // Réinitialiser l'affichage
+    if (image) {
+        image.style.display = 'none';
+        image.src = '';
+    }
+    if (video) {
+        video.style.display = 'none';
+        video.pause();
+        video.src = '';
+    }
+
+    // Afficher le média approprié
+    if (media.type === 'image') {
+        if (image) {
+            image.src = media.path;
+            image.alt = media.name;
+            image.style.display = 'block';
+        }
+    } else if (media.type === 'video') {
+        if (video) {
+            video.src = media.path;
+            video.style.display = 'block';
+            video.load();
+        }
+    }
+
+    // Afficher les informations
+    if (info) {
+        const dateStr = new Date(media.uploadedAt).toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const sizeStr = formatFileSize(media.size);
+
+        info.innerHTML = `
+            <div>${media.name}</div>
+            <div style="font-size: 0.9rem; opacity: 0.8;">${dateStr} • ${sizeStr} • ${index + 1}/${adminPendingMedia.length}</div>
+        `;
+    }
+
+    // Gérer les boutons de navigation
+    const prevBtn = document.getElementById('prevAdminMedia');
+    const nextBtn = document.getElementById('nextAdminMedia');
+    if (prevBtn) prevBtn.style.display = index > 0 ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = index < adminPendingMedia.length - 1 ? 'flex' : 'none';
+}
+
+// Naviguer dans les médias
+function navigateAdminMedia(direction) {
+    const newIndex = currentAdminMediaIndex + direction;
+    if (newIndex >= 0 && newIndex < adminPendingMedia.length) {
+        currentAdminMediaIndex = newIndex;
+        showAdminMedia(newIndex);
+    }
+}
+
+// Gestion du clavier
+function handleAdminLightboxKeyboard(e) {
+    const lightbox = document.getElementById('adminLightbox');
+    if (!lightbox || lightbox.style.display === 'none') return;
+
+    switch(e.key) {
+        case 'Escape':
+            closeAdminLightbox();
+            break;
+        case 'ArrowLeft':
+            navigateAdminMedia(-1);
+            break;
+        case 'ArrowRight':
+            navigateAdminMedia(1);
+            break;
+    }
+}
+
+// Valider le média courant depuis la lightbox
+async function approveCurrentAdminMedia() {
+    if (currentAdminMediaIndex < 0 || currentAdminMediaIndex >= adminPendingMedia.length) return;
+
+    const media = adminPendingMedia[currentAdminMediaIndex];
+    const nextIndex = currentAdminMediaIndex;
+
+    try {
+        const response = await fetch('/api/admin/approve-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: media.name })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Fermer la lightbox et recharger
+            closeAdminLightbox();
+            await loadPendingUploads();
+
+            // Rouvrir la lightbox sur le média suivant s'il existe
+            if (nextIndex < adminPendingMedia.length) {
+                setTimeout(() => openAdminLightbox(nextIndex), 100);
+            }
+        } else {
+            throw new Error(result.error || 'Erreur lors de la validation');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de la validation');
+    }
+}
+
+// Rejeter le média courant depuis la lightbox
+async function rejectCurrentAdminMedia() {
+    if (currentAdminMediaIndex < 0 || currentAdminMediaIndex >= adminPendingMedia.length) return;
+
+    const media = adminPendingMedia[currentAdminMediaIndex];
+
+    if (!confirm(`Rejeter et supprimer définitivement ce fichier ?\n${media.name}\n\nCette action est irréversible.`)) return;
+
+    const nextIndex = currentAdminMediaIndex;
+
+    try {
+        const response = await fetch('/api/admin/reject-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: media.name })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Fermer la lightbox et recharger
+            closeAdminLightbox();
+            await loadPendingUploads();
+
+            // Rouvrir la lightbox sur le média suivant s'il existe
+            if (nextIndex < adminPendingMedia.length) {
+                setTimeout(() => openAdminLightbox(nextIndex), 100);
+            }
+        } else {
+            throw new Error(result.error || 'Erreur lors du rejet');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors du rejet');
+    }
 }
