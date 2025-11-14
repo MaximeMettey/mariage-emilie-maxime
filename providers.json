@@ -10,8 +10,17 @@
       "websiteLink": "https://www.villersexel.com/"
     },
     {
+      "id": "50shadesproject",
+      "name": "Photographe - Préparatifs",
+      "company": "Laurent Lopez - 50ShadesProject",
+      "description": "Des photos magnifiques qui capturent l'émotion et la magie de chaque instant.",
+      "logo": "/images/providers/50shadesproject.jpg",
+      "reviewLink": "https://www.google.com/search?q=50shadesproject",
+      "websiteLink": "https://www.instagram.com"
+    },
+    {
       "id": "darkcube",
-      "name": "Photographe",
+      "name": "Photographe - Civil, Cérémonie, Soirée",
       "company": "Sébastien Niggli - Darkcube",
       "description": "Des photos magnifiques qui capturent l'émotion et la magie de chaque instant.",
       "logo": "/images/providers/darkcube.jpg",
@@ -71,6 +80,51 @@
       "logo": "/images/providers/fleurs-du-midi.jpg",
       "reviewLink": "https://www.google.com/search?q=Fleurs+du+Midi+Belfort",
       "websiteLink": "https://fleuristes-et-fleurs.com/fleuriste/fleurs-du-midi-belfort-90000"
+    },
+    {
+      "id": "justeunbaiser",
+      "name": "Voile",
+      "company": "Juste Un Baiser - Dunkerque",
+      "description": "Un accompagnement personnalisé pour choisir le voile parfait pour ce jour unique.",
+      "logo": "/images/providers/justeunbaiser.jpg",
+      "reviewLink": "https://www.google.com/search?q=Juste+Un+Baiser+Belfort",
+      "websiteLink": "https://www.justeunbaiser.fr/"
+    },
+    {
+      "id": "alina",
+      "name": "Robe - Cérémonie civile",
+      "company": "Sarya Mariage",
+      "description": "---",
+      "logo": "/images/providers/saryamariage.jpg",
+      "reviewLink": "",
+      "websiteLink": "https://www.instagram.com/sarya_mariage/"
+    },
+    {
+      "id": "alina",
+      "name": "Robe - Cérémonie religieuse",
+      "company": "Mila Nova - Modèle Alina",
+      "description": "---",
+      "logo": "/images/providers/alinemilanova.jpg",
+      "reviewLink": "",
+      "websiteLink": "https://millanova.com/dress/alina"
+    },
+    {
+      "id": "celine-at-home",
+      "name": "Coiffure",
+      "company": "Céline at home",
+      "description": "Une coiffure magnifique qui a sublimé ce jour unique.",
+      "logo": "/images/providers/celine-at-home.jpg",
+      "reviewLink": "",
+      "websiteLink": ""
+    },
+    {
+      "id": "anna-makeup",
+      "name": "Make Up",
+      "company": "Anna",
+      "description": "Un maquillage parfait pour une journée inoubliable.",
+      "logo": "/images/providers/anna-makeup.jpg",
+      "reviewLink": "",
+      "websiteLink": ""
     },
     {
       "id": "id-mariage",

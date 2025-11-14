@@ -2,6 +2,9 @@
 const loginView = document.getElementById('loginView');
 const appView = document.getElementById('appView');
 
+// Variable globale pour le rôle utilisateur
+window.userRole = null;
+
 // Vérifier l'authentification au chargement
 async function checkAuth() {
     try {
@@ -9,6 +12,11 @@ async function checkAuth() {
         const data = await response.json();
 
         if (data.authenticated) {
+            // Récupérer le rôle de l'utilisateur
+            const roleResponse = await fetch('/api/user-role');
+            const roleData = await roleResponse.json();
+            window.userRole = roleData.role;
+
             showApp();
         } else {
             showLogin();
@@ -32,6 +40,9 @@ function showApp() {
     appView.style.display = 'block';
     document.body.className = '';
 
+    // Mettre à jour le menu en fonction du rôle
+    updateMenuBasedOnRole();
+
     // Initialiser le lecteur de musique si pas déjà fait
     if (typeof loadMusicTracks === 'function' && !window.musicInitialized) {
         loadMusicTracks();
@@ -42,6 +53,20 @@ function showApp() {
     if (typeof router !== 'undefined' && !window.routerInitialized) {
         router.init();
         window.routerInitialized = true;
+    }
+}
+
+// Mettre à jour le menu en fonction du rôle
+function updateMenuBasedOnRole() {
+    const adminLink = document.querySelector('[data-route="admin"]');
+
+    if (adminLink) {
+        // Afficher/masquer le lien admin en fonction du rôle
+        if (window.userRole === 'admin') {
+            adminLink.style.display = 'flex';
+        } else {
+            adminLink.style.display = 'none';
+        }
     }
 }
 
@@ -72,6 +97,8 @@ if (loginForm) {
             const data = await response.json();
 
             if (response.ok && data.success) {
+                // Stocker le rôle de l'utilisateur
+                window.userRole = data.role || 'guest';
                 showApp();
             } else {
                 errorMessage.textContent = data.error || 'Code d\'accès incorrect';

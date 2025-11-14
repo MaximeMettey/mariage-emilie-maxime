@@ -45,6 +45,16 @@ class Router {
             route = 'gallery';
         } else if (path === '/providers') {
             route = 'providers';
+        } else if (path === '/admin') {
+            route = 'admin';
+        }
+
+        // Vérifier l'accès admin
+        if (route === 'admin' && window.userRole !== 'admin') {
+            // Rediriger vers l'accueil si pas admin
+            alert('Accès refusé - Vous devez être administrateur pour accéder à cette page.');
+            this.navigate('welcome');
+            return;
         }
 
         // Mettre à jour la classe active dans le menu
@@ -75,3 +85,57 @@ class Router {
 
 // Instance globale du router
 const router = new Router();
+
+// Gestion du menu burger pour mobile
+document.addEventListener('DOMContentLoaded', () => {
+    const burgerToggle = document.getElementById('burgerToggle');
+    const mainNav = document.getElementById('mainNav');
+    const navLinks = document.querySelectorAll('.nav-link');
+    const burgerIcon = document.getElementById('burgerIcon');
+    const closeIcon = document.getElementById('closeIcon');
+
+    if (burgerToggle && mainNav && burgerIcon && closeIcon) {
+        // Toggle du menu au clic sur le burger
+        burgerToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = mainNav.classList.toggle('menu-open');
+
+            // Changer l'icône
+            if (isOpen) {
+                burgerIcon.style.display = 'none';
+                closeIcon.style.display = 'block';
+            } else {
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
+            }
+        });
+
+        // Fermer le menu au clic sur un lien
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mainNav.classList.remove('menu-open');
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
+            });
+        });
+
+        // Fermer le menu au clic en dehors
+        document.addEventListener('click', (e) => {
+            if (mainNav.classList.contains('menu-open') &&
+                !mainNav.contains(e.target)) {
+                mainNav.classList.remove('menu-open');
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
+            }
+        });
+
+        // Fermer le menu avec la touche Échap
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mainNav.classList.contains('menu-open')) {
+                mainNav.classList.remove('menu-open');
+                burgerIcon.style.display = 'block';
+                closeIcon.style.display = 'none';
+            }
+        });
+    }
+});
