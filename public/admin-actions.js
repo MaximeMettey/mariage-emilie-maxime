@@ -315,6 +315,89 @@ async function updateProvidersConfig() {
     }
 }
 
+async function uploadMusicFiles() {
+    const fileInput = document.getElementById('musicFileInput');
+    const files = fileInput.files;
+
+    if (files.length === 0) {
+        showNotification('Veuillez sélectionner au moins un fichier', 'error');
+        return;
+    }
+
+    showNotification('Upload en cours...', 'info');
+
+    try {
+        // Uploader chaque fichier séquentiellement
+        for (let i = 0; i < files.length; i++) {
+            const formData = new FormData();
+            formData.append('music', files[i]);
+
+            const response = await fetch('/api/admin/music/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                showNotification(`Erreur pour ${files[i].name}: ${data.error}`, 'error');
+            }
+        }
+
+        showNotification(`${files.length} fichier(s) uploadé(s) avec succès`, 'success');
+        fileInput.value = ''; // Réinitialiser l'input
+
+        // Recharger la liste des musiques
+        if (typeof loadMusicFilesList === 'function') {
+            await loadMusicFilesList();
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'upload', 'error');
+    }
+}
+
+async function deleteMusicFile(trackName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${trackName}" ?`)) return;
+
+    try {
+        // Le nom du track vient sans extension, on doit retrouver le nom de fichier
+        // On récupère la liste complète pour trouver le fichier correspondant
+        const response = await fetch('/api/music');
+        const data = await response.json();
+
+        const track = data.tracks?.find(t => t.name === trackName);
+        if (!track) {
+            showNotification('Fichier introuvable', 'error');
+            return;
+        }
+
+        // Extraire le nom de fichier du path (ex: "/music/song.mp3" → "song.mp3")
+        const filename = track.path.split('/').pop();
+        const encodedFilename = encodeURIComponent(filename);
+
+        const deleteResponse = await fetch(`/api/admin/music/${encodedFilename}`, {
+            method: 'DELETE'
+        });
+
+        const deleteData = await deleteResponse.json();
+
+        if (deleteData.success) {
+            showNotification(deleteData.message, 'success');
+
+            // Recharger la liste des musiques
+            if (typeof loadMusicFilesList === 'function') {
+                await loadMusicFilesList();
+            }
+        } else {
+            showNotification(deleteData.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
+    }
+}
+
 /**
  * ======================
  * GESTION DES PRESTATAIRES

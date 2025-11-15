@@ -300,6 +300,21 @@ async function renderSettingsTab(container) {
                     </div>
 
                     <button class="btn btn-primary" onclick="updateMusicConfig()">Mettre à jour</button>
+
+                    <hr style="margin: 30px 0; border-color: #e0e0e0;">
+
+                    <h4>Gestion des fichiers musicaux</h4>
+                    <div class="form-group">
+                        <label>Uploader des musiques</label>
+                        <input type="file" id="musicFileInput" accept="audio/*" multiple>
+                        <small>Formats acceptés : MP3, WAV, OGG, M4A, FLAC (max 50MB par fichier)</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="uploadMusicFiles()">Uploader</button>
+
+                    <div id="musicFilesList" style="margin-top: 20px;">
+                        <div class="loading">Chargement de la liste des musiques...</div>
+                    </div>
                 </div>
 
                 <!-- Page Prestataires -->
@@ -328,9 +343,46 @@ async function renderSettingsTab(container) {
                 fields.classList.add('hidden');
             }
         });
+
+        // Charger la liste des musiques
+        await loadMusicFilesList();
     } catch (error) {
         console.error('Erreur lors du chargement des paramètres:', error);
         container.innerHTML = '<div class="error">Erreur lors du chargement des paramètres</div>';
+    }
+}
+
+/**
+ * Charger la liste des fichiers musicaux
+ */
+async function loadMusicFilesList() {
+    const musicFilesList = document.getElementById('musicFilesList');
+    if (!musicFilesList) return;
+
+    try {
+        const response = await fetch('/api/music');
+        const data = await response.json();
+
+        if (data.tracks && data.tracks.length > 0) {
+            let html = '<h4 style="margin-bottom: 10px;">Musiques disponibles</h4><div class="music-files-grid">';
+
+            data.tracks.forEach(track => {
+                html += `
+                    <div class="music-file-item">
+                        <span class="music-file-name">🎵 ${track.name}</span>
+                        <button class="btn btn-danger btn-sm" onclick="deleteMusicFile('${track.name}')">🗑️</button>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            musicFilesList.innerHTML = html;
+        } else {
+            musicFilesList.innerHTML = '<p style="color: #666;">Aucune musique uploadée</p>';
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        musicFilesList.innerHTML = '<p style="color: #f44336;">Erreur lors du chargement</p>';
     }
 }
 
@@ -1142,6 +1194,28 @@ function addAdminStyles() {
                 flex-direction: column;
                 align-items: flex-start;
             }
+        }
+
+        /* Styles pour la gestion des musiques */
+        .music-files-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .music-file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border-left: 3px solid #c9a66b;
+        }
+
+        .music-file-name {
+            color: #333;
+            font-weight: 500;
         }
     `;
 

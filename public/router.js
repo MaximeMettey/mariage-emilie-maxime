@@ -45,6 +45,8 @@ class Router {
             route = 'gallery';
         } else if (path === '/providers') {
             route = 'providers';
+        } else if (path === '/guestbook') {
+            route = 'guestbook';
         } else if (path === '/admin') {
             route = 'admin';
         }

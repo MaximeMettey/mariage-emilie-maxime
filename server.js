@@ -977,6 +977,85 @@ app.post('/api/admin/providers/upload-logo', requireAdmin, providerLogoUpload.si
   }
 });
 
+// Upload de musique
+const musicStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const musicDir = path.join(__dirname, 'music');
+    try {
+      if (!fsSync.existsSync(musicDir)) {
+        await fs.mkdir(musicDir, { recursive: true });
+      }
+      cb(null, musicDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    // Conserver le nom original pour faciliter la reconnaissance
+    const sanitized = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, sanitized);
+  }
+});
+
+const musicUpload = multer({
+  storage: musicStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /mp3|wav|ogg|m4a|flac/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = /audio/.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Seuls les fichiers audio sont autorisés (mp3, wav, ogg, m4a, flac)'));
+    }
+  }
+});
+
+app.post('/api/admin/music/upload', requireAdmin, musicUpload.single('music'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier reçu' });
+    }
+
+    res.json({
+      success: true,
+      filename: req.file.filename,
+      message: 'Musique uploadée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'upload de la musique:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la musique' });
+  }
+});
+
+// Supprimer une musique
+app.delete('/api/admin/music/:filename', requireAdmin, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(MUSIC_DIR, filename);
+
+    // Vérifier que le fichier existe
+    if (!fsSync.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier introuvable' });
+    }
+
+    // Supprimer le fichier
+    await fs.unlink(filePath);
+
+    res.json({
+      success: true,
+      message: 'Musique supprimée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la musique:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la musique' });
+  }
+});
+
 // Routes pour la gestion de la galerie (admin uniquement)
 
 // Lister les catégories et dossiers

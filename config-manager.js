@@ -76,9 +76,9 @@ class ConfigManager {
         pass: smtp?.pass || ''
       },
       welcome: {
-        title: welcome?.title || 'Émilie & Maxime',
-        message: welcome?.message || 'Merci d\'être venus célébrer notre mariage avec nous !',
-        image: welcome?.image || '/images/welcome.jpg'
+        title: welcome?.title || '',
+        message: welcome?.message || '',
+        image: welcome?.image || ''
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -171,9 +171,9 @@ class ConfigManager {
     if (!this.config) return false;
 
     this.config.welcome = {
-      title: welcome.title || 'Émilie & Maxime',
+      title: welcome.title || '',
       message: welcome.message || '',
-      image: welcome.image || '/images/welcome.jpg'
+      image: welcome.image || ''
     };
     this.config.updatedAt = new Date().toISOString();
 
@@ -192,9 +192,9 @@ class ConfigManager {
    */
   getWelcomeConfig() {
     return this.config?.welcome || {
-      title: 'Émilie & Maxime',
-      message: 'Merci d\'être venus célébrer notre mariage avec nous !',
-      image: '/images/welcome.jpg'
+      title: '',
+      message: '',
+      image: ''
     };
   }
 
