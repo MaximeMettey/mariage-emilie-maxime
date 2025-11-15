@@ -300,6 +300,9 @@ async function renderProvidersTab(container) {
         const response = await fetch('/api/providers');
         const data = await response.json();
 
+        // Stocker les providers globalement pour pouvoir les récupérer lors de l'édition
+        window.currentProviders = data.providers;
+
         let html = `
             <div class="providers-section">
                 <div class="section-header">
@@ -322,7 +325,7 @@ async function renderProvidersTab(container) {
                         <p class="provider-description">${provider.description}</p>
                     </div>
                     <div class="provider-actions">
-                        <button class="btn btn-secondary btn-sm" onclick='editProvider(${JSON.stringify(provider)})'>✏️ Modifier</button>
+                        <button class="btn btn-secondary btn-sm" onclick="editProvider('${provider.id}')">✏️ Modifier</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteProvider('${provider.id}')">🗑️ Supprimer</button>
                     </div>
                 </div>
@@ -570,16 +573,16 @@ function addAdminStyles() {
             border-bottom-color: #c9a66b;
         }
 
-        .settings-section,
-        .providers-section,
-        .gallery-management-section,
-        .pending-uploads-section {
+        .admin-dashboard .settings-section,
+        .admin-dashboard .providers-section,
+        .admin-dashboard .gallery-management-section,
+        .admin-dashboard .pending-uploads-section {
             max-width: 1200px;
             margin: 0 auto;
         }
 
-        .settings-card,
-        .provider-card {
+        .admin-dashboard .settings-card,
+        .admin-dashboard .provider-card {
             background: white;
             padding: 20px;
             border-radius: 8px;
@@ -587,28 +590,28 @@ function addAdminStyles() {
             margin-bottom: 20px;
         }
 
-        .settings-card h3 {
+        .admin-dashboard .settings-card h3 {
             color: #c9a66b;
             margin-top: 0;
         }
 
-        .form-group {
+        .admin-dashboard .form-group {
             margin-bottom: 20px;
         }
 
-        .form-group label {
+        .admin-dashboard .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
             color: #333;
         }
 
-        .form-group input[type="text"],
-        .form-group input[type="email"],
-        .form-group input[type="password"],
-        .form-group input[type="number"],
-        .form-group input[type="url"],
-        .form-group textarea {
+        .admin-dashboard .form-group input[type="text"],
+        .admin-dashboard .form-group input[type="email"],
+        .admin-dashboard .form-group input[type="password"],
+        .admin-dashboard .form-group input[type="number"],
+        .admin-dashboard .form-group input[type="url"],
+        .admin-dashboard .form-group textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -619,39 +622,39 @@ function addAdminStyles() {
             background: white;
         }
 
-        .form-group small {
+        .admin-dashboard .form-group small {
             display: block;
             margin-top: 5px;
             color: #666;
             font-size: 12px;
         }
 
-        .section-header {
+        .admin-dashboard .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
         }
 
-        .batch-actions {
+        .admin-dashboard .batch-actions {
             display: flex;
             gap: 10px;
         }
 
-        .pending-uploads-grid {
+        .admin-dashboard .pending-uploads-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 20px;
         }
 
-        .pending-upload-card {
+        .admin-dashboard .pending-upload-card {
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             overflow: hidden;
         }
 
-        .upload-preview {
+        .admin-dashboard .upload-preview {
             height: 200px;
             background: #f5f5f5;
             display: flex;
@@ -660,13 +663,13 @@ function addAdminStyles() {
             cursor: pointer;
         }
 
-        .upload-preview img {
+        .admin-dashboard .upload-preview img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        .video-preview {
+        .admin-dashboard .video-preview {
             width: 100%;
             height: 100%;
             display: flex;
@@ -677,15 +680,15 @@ function addAdminStyles() {
             color: white;
         }
 
-        .play-icon {
+        .admin-dashboard .play-icon {
             font-size: 48px;
         }
 
-        .upload-info {
+        .admin-dashboard .upload-info {
             padding: 10px;
         }
 
-        .file-name {
+        .admin-dashboard .file-name {
             font-weight: 500;
             margin: 0 0 5px 0;
             overflow: hidden;
@@ -693,25 +696,25 @@ function addAdminStyles() {
             white-space: nowrap;
         }
 
-        .file-meta {
+        .admin-dashboard .file-meta {
             font-size: 12px;
             color: #666;
             margin: 0;
         }
 
-        .upload-actions {
+        .admin-dashboard .upload-actions {
             padding: 10px;
             display: flex;
             gap: 10px;
         }
 
-        .providers-grid {
+        .admin-dashboard .providers-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
         }
 
-        .provider-logo {
+        .admin-dashboard .provider-logo {
             height: 120px;
             display: flex;
             align-items: center;
@@ -721,29 +724,29 @@ function addAdminStyles() {
             margin-bottom: 15px;
         }
 
-        .provider-logo img {
+        .admin-dashboard .provider-logo img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
         }
 
-        .provider-company {
+        .admin-dashboard .provider-company {
             color: #c9a66b;
             font-weight: 500;
         }
 
-        .provider-description {
+        .admin-dashboard .provider-description {
             color: #666;
             font-size: 14px;
         }
 
-        .provider-actions {
+        .admin-dashboard .provider-actions {
             display: flex;
             gap: 10px;
             margin-top: 15px;
         }
 
-        .category-section {
+        .admin-dashboard .category-section {
             background: white;
             padding: 20px;
             border-radius: 8px;
@@ -751,25 +754,25 @@ function addAdminStyles() {
             margin-bottom: 20px;
         }
 
-        .category-header {
+        .admin-dashboard .category-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
         }
 
-        .category-header h3 {
+        .admin-dashboard .category-header h3 {
             color: #c9a66b;
             margin: 0;
         }
 
-        .folders-list {
+        .admin-dashboard .folders-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 10px;
         }
 
-        .folder-item {
+        .admin-dashboard .folder-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -817,14 +820,14 @@ function addAdminStyles() {
             color: #333;
         }
 
-        .form-actions {
+        .admin-dashboard .form-actions {
             display: flex;
             gap: 10px;
             justify-content: flex-end;
             margin-top: 20px;
         }
 
-        .btn {
+        .admin-dashboard .btn {
             padding: 10px 20px;
             border: none;
             border-radius: 5px;
@@ -833,56 +836,56 @@ function addAdminStyles() {
             transition: all 0.3s ease;
         }
 
-        .btn-primary {
+        .admin-dashboard .btn-primary {
             background: #c9a66b;
             color: white;
         }
 
-        .btn-primary:hover {
+        .admin-dashboard .btn-primary:hover {
             background: #b8956a;
         }
 
-        .btn-secondary {
+        .admin-dashboard .btn-secondary {
             background: #e0e0e0;
             color: #333;
         }
 
-        .btn-secondary:hover {
+        .admin-dashboard .btn-secondary:hover {
             background: #d0d0d0;
         }
 
-        .btn-success {
+        .admin-dashboard .btn-success {
             background: #4CAF50;
             color: white;
         }
 
-        .btn-success:hover {
+        .admin-dashboard .btn-success:hover {
             background: #45a049;
         }
 
-        .btn-danger {
+        .admin-dashboard .btn-danger {
             background: #f44336;
             color: white;
         }
 
-        .btn-danger:hover {
+        .admin-dashboard .btn-danger:hover {
             background: #da190b;
         }
 
-        .btn-sm {
+        .admin-dashboard .btn-sm {
             padding: 6px 12px;
             font-size: 12px;
         }
 
-        .loading,
-        .error,
-        .empty-state {
+        .admin-dashboard .loading,
+        .admin-dashboard .error,
+        .admin-dashboard .empty-state {
             text-align: center;
             padding: 40px;
             color: #666;
         }
 
-        .error {
+        .admin-dashboard .error {
             color: #f44336;
         }
 

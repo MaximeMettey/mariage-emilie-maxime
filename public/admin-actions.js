@@ -281,7 +281,15 @@ function closeProviderModal() {
     document.getElementById('providerModal').classList.add('hidden');
 }
 
-function editProvider(provider) {
+function editProvider(providerId) {
+    // Récupérer le provider depuis la variable globale
+    const provider = window.currentProviders?.find(p => p.id === providerId);
+    if (!provider) {
+        console.error('Provider non trouvé:', providerId);
+        showNotification('Erreur: prestataire introuvable', 'error');
+        return;
+    }
+
     document.getElementById('providerModalTitle').textContent = 'Modifier le prestataire';
     document.getElementById('providerId').value = provider.id;
     document.getElementById('providerName').value = provider.name;
