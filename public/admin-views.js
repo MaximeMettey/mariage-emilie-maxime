@@ -7,7 +7,7 @@ let currentAdminTab = 'uploads'; // uploads, settings, providers, gallery
  * Rendu de l'interface admin complète avec onglets
  */
 async function renderAdminDashboard() {
-    const appContent = document.getElementById('app-content');
+    const appContent = document.getElementById('appContent');
 
     appContent.innerHTML = `
         <div class="admin-dashboard">
