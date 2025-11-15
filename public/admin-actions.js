@@ -264,6 +264,57 @@ async function updateWelcomeConfig() {
     }
 }
 
+async function updateMusicConfig() {
+    const musicConfig = {
+        enabled: document.getElementById('musicEnabled').checked,
+        autoplay: document.getElementById('musicAutoplay').checked
+    };
+
+    try {
+        const response = await fetch('/api/admin/settings/music', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(musicConfig)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message + ' - Rechargez la page pour voir les changements', 'success');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la mise à jour', 'error');
+    }
+}
+
+async function updateProvidersConfig() {
+    const providersConfig = {
+        enabled: document.getElementById('providersEnabled').checked
+    };
+
+    try {
+        const response = await fetch('/api/admin/settings/providers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(providersConfig)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message + ' - Rechargez la page pour voir les changements', 'success');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la mise à jour', 'error');
+    }
+}
+
 /**
  * ======================
  * GESTION DES PRESTATAIRES
@@ -607,5 +658,54 @@ function openLightbox(path, type) {
     } else {
         // Fallback: ouvrir dans un nouvel onglet
         window.open(path, '_blank');
+    }
+}
+
+/**
+ * ======================
+ * GESTION DU LIVRE D'OR
+ * ======================
+ */
+
+async function approveGuestbookEntry(entryId) {
+    try {
+        const response = await fetch(`/api/admin/guestbook/approve/${entryId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('guestbook');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'approbation', 'error');
+    }
+}
+
+async function deleteGuestbookEntry(entryId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) return;
+
+    try {
+        const response = await fetch(`/api/admin/guestbook/${entryId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('guestbook');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
     }
 }

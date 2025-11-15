@@ -1092,3 +1092,298 @@ async function rejectCurrentAdminMedia() {
         alert('Une erreur est survenue lors du rejet');
     }
 }
+
+// Vue du livre d'or
+async function renderGuestbookView() {
+    const container = document.getElementById('appContent');
+
+    container.innerHTML = `
+        <div class="guestbook-page">
+            <div class="guestbook-container">
+                <div class="guestbook-header">
+                    <h1>📖 Livre d'or</h1>
+                    <p>Laissez-nous un message pour partager vos souvenirs de cette journée</p>
+                </div>
+
+                <!-- Formulaire de soumission -->
+                <div class="guestbook-form-card">
+                    <h2>✍️ Laissez un message</h2>
+                    <form id="guestbookForm">
+                        <div class="form-group">
+                            <label for="guestbookName">Votre nom *</label>
+                            <input type="text" id="guestbookName" name="name" required maxlength="100" placeholder="Prénom Nom">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="guestbookMessage">Votre message *</label>
+                            <textarea id="guestbookMessage" name="message" required maxlength="500" rows="5" placeholder="Partagez vos meilleurs souvenirs..."></textarea>
+                            <small id="charCount">0 / 500 caractères</small>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Envoyer</button>
+                    </form>
+                </div>
+
+                <!-- Liste des messages -->
+                <div class="guestbook-entries">
+                    <h2>💬 Messages</h2>
+                    <div id="guestbookEntriesList" class="entries-list">
+                        <div class="loading">Chargement des messages...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Ajouter les styles
+    addGuestbookStyles();
+
+    // Charger les messages
+    await loadGuestbookEntries();
+
+    // Event listeners
+    const form = document.getElementById('guestbookForm');
+    const messageTextarea = document.getElementById('guestbookMessage');
+    const charCount = document.getElementById('charCount');
+
+    // Compteur de caractères
+    messageTextarea.addEventListener('input', () => {
+        const count = messageTextarea.value.length;
+        charCount.textContent = `${count} / 500 caractères`;
+        if (count > 450) {
+            charCount.style.color = '#f44336';
+        } else {
+            charCount.style.color = '#666';
+        }
+    });
+
+    // Soumission du formulaire
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await submitGuestbookEntry();
+    });
+}
+
+async function loadGuestbookEntries() {
+    const entriesList = document.getElementById('guestbookEntriesList');
+
+    try {
+        const response = await fetch('/api/guestbook');
+        const data = await response.json();
+
+        if (data.entries && data.entries.length > 0) {
+            entriesList.innerHTML = data.entries.map(entry => {
+                const date = new Date(entry.createdAt).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                return `
+                    <div class="guestbook-entry">
+                        <div class="entry-header">
+                            <strong class="entry-name">${entry.name}</strong>
+                            <span class="entry-date">${date}</span>
+                        </div>
+                        <p class="entry-message">${entry.message}</p>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            entriesList.innerHTML = '<div class="empty-state">Aucun message pour le moment. Soyez le premier à laisser un message !</div>';
+        }
+    } catch (error) {
+        console.error('Erreur lors du chargement des messages:', error);
+        entriesList.innerHTML = '<div class="error-state">Erreur lors du chargement des messages</div>';
+    }
+}
+
+async function submitGuestbookEntry() {
+    const form = document.getElementById('guestbookForm');
+    const name = document.getElementById('guestbookName').value.trim();
+    const message = document.getElementById('guestbookMessage').value.trim();
+
+    if (!name || !message) {
+        alert('Veuillez remplir tous les champs');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/guestbook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, message })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Merci ! Votre message a été soumis et sera visible après modération.');
+            form.reset();
+            document.getElementById('charCount').textContent = '0 / 500 caractères';
+        } else {
+            alert(result.error || 'Une erreur est survenue');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'envoi du message');
+    }
+}
+
+function addGuestbookStyles() {
+    const styleId = 'guestbook-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+        .guestbook-page {
+            min-height: 100vh;
+            padding: 80px 20px 40px;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+        }
+
+        .guestbook-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .guestbook-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .guestbook-header h1 {
+            color: #8b1538;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .guestbook-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .guestbook-form-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+
+        .guestbook-form-card h2 {
+            color: #c9a66b;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .guestbook-form-card .form-group {
+            margin-bottom: 20px;
+        }
+
+        .guestbook-form-card label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .guestbook-form-card input[type="text"],
+        .guestbook-form-card textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .guestbook-form-card textarea {
+            resize: vertical;
+        }
+
+        .guestbook-form-card small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .guestbook-entries {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .guestbook-entries h2 {
+            color: #c9a66b;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .entries-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .guestbook-entry {
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #c9a66b;
+            border-radius: 5px;
+        }
+
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .entry-name {
+            color: #8b1538;
+            font-size: 1.1rem;
+        }
+
+        .entry-date {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .entry-message {
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        @media (max-width: 768px) {
+            .guestbook-header h1 {
+                font-size: 2rem;
+            }
+
+            .guestbook-form-card,
+            .guestbook-entries {
+                padding: 20px;
+            }
+
+            .entry-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+}

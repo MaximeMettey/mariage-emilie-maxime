@@ -1,7 +1,7 @@
 // Vues d'administration avancées
 
 // État global pour les onglets admin
-let currentAdminTab = 'uploads'; // uploads, settings, providers, gallery
+let currentAdminTab = 'uploads'; // uploads, settings, providers, gallery, guestbook
 
 /**
  * Rendu de l'interface admin complète avec onglets
@@ -28,6 +28,9 @@ async function renderAdminDashboard() {
                 </button>
                 <button class="admin-tab ${currentAdminTab === 'gallery' ? 'active' : ''}" data-tab="gallery">
                     🖼️ Gestion galerie
+                </button>
+                <button class="admin-tab ${currentAdminTab === 'guestbook' ? 'active' : ''}" data-tab="guestbook">
+                    📖 Livre d'or
                 </button>
             </div>
 
@@ -89,6 +92,9 @@ async function loadAdminTab(tabName) {
             break;
         case 'gallery':
             await renderGalleryTab(tabContent);
+            break;
+        case 'guestbook':
+            await renderGuestbookTab(tabContent);
             break;
     }
 }
@@ -271,6 +277,44 @@ async function renderSettingsTab(container) {
                     </div>
 
                     <button class="btn btn-primary" onclick="updateWelcomeConfig()">Mettre à jour</button>
+                </div>
+
+                <!-- Musique -->
+                <div class="settings-card">
+                    <h3>🎵 Lecteur de musique</h3>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="musicEnabled" ${config.music?.enabled !== false ? 'checked' : ''}>
+                            Activer le lecteur de musique
+                        </label>
+                        <small>Affiche le lecteur de musique sur toutes les pages</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="musicAutoplay" ${config.music?.autoplay !== false ? 'checked' : ''}>
+                            Lecture automatique
+                        </label>
+                        <small>Démarre automatiquement la musique au chargement de la page</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="updateMusicConfig()">Mettre à jour</button>
+                </div>
+
+                <!-- Page Prestataires -->
+                <div class="settings-card">
+                    <h3>🤝 Page prestataires</h3>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="providersEnabled" ${config.providers?.enabled !== false ? 'checked' : ''}>
+                            Activer la page prestataires
+                        </label>
+                        <small>Affiche la page prestataires dans le menu de navigation</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="updateProvidersConfig()">Mettre à jour</button>
                 </div>
             </div>
         `;
@@ -518,6 +562,84 @@ async function renderGalleryTab(container) {
     } catch (error) {
         console.error('Erreur lors du chargement de la structure:', error);
         container.innerHTML = '<div class="error">Erreur lors du chargement de la structure</div>';
+    }
+}
+
+/**
+ * Onglet Livre d'or (modération)
+ */
+async function renderGuestbookTab(container) {
+    container.innerHTML = '<div class="loading">Chargement des messages...</div>';
+
+    try {
+        const response = await fetch('/api/admin/guestbook');
+        const data = await response.json();
+
+        let html = `
+            <div class="guestbook-admin-section">
+                <div class="section-header">
+                    <h2>📖 Modération du livre d'or</h2>
+                    <div class="guestbook-stats">
+                        <span class="stat-badge stat-pending">En attente: ${data.stats.pending}</span>
+                        <span class="stat-badge stat-approved">Approuvés: ${data.stats.approved}</span>
+                        <span class="stat-badge stat-total">Total: ${data.stats.total}</span>
+                    </div>
+                </div>
+
+                <div class="guestbook-entries-list">
+        `;
+
+        if (data.entries.length === 0) {
+            html += '<div class="empty-state">Aucun message pour le moment</div>';
+        } else {
+            data.entries.forEach(entry => {
+                const date = new Date(entry.createdAt).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const statusClass = entry.status === 'pending' ? 'status-pending' :
+                                  entry.status === 'approved' ? 'status-approved' :
+                                  'status-rejected';
+
+                const statusText = entry.status === 'pending' ? 'En attente' :
+                                 entry.status === 'approved' ? 'Approuvé' :
+                                 'Rejeté';
+
+                html += `
+                    <div class="guestbook-admin-entry ${statusClass}">
+                        <div class="entry-header-admin">
+                            <div class="entry-info">
+                                <strong class="entry-author">${entry.name}</strong>
+                                <span class="entry-date-admin">${date}</span>
+                                <span class="entry-ip">IP: ${entry.ip}</span>
+                            </div>
+                            <span class="entry-status">${statusText}</span>
+                        </div>
+                        <p class="entry-message-admin">${entry.message}</p>
+                        <div class="entry-actions-admin">
+                            ${entry.status === 'pending' ?
+                                `<button class="btn btn-success btn-sm" onclick="approveGuestbookEntry('${entry.id}')">✓ Approuver</button>` :
+                                ''}
+                            <button class="btn btn-danger btn-sm" onclick="deleteGuestbookEntry('${entry.id}')">🗑️ Supprimer</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Erreur lors du chargement des messages:', error);
+        container.innerHTML = '<div class="error">Erreur lors du chargement des messages</div>';
     }
 }
 
@@ -891,6 +1013,135 @@ function addAdminStyles() {
 
         .hidden {
             display: none !important;
+        }
+
+        /* Styles pour le livre d'or admin */
+        .guestbook-admin-section {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .guestbook-stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .stat-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .stat-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .stat-total {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .guestbook-entries-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .guestbook-admin-entry {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #c9a66b;
+        }
+
+        .guestbook-admin-entry.status-pending {
+            border-left-color: #ffc107;
+        }
+
+        .guestbook-admin-entry.status-approved {
+            border-left-color: #4CAF50;
+        }
+
+        .entry-header-admin {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .entry-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .entry-author {
+            color: #8b1538;
+            font-size: 1.1rem;
+        }
+
+        .entry-date-admin {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .entry-ip {
+            color: #999;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+
+        .entry-status {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-pending .entry-status {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved .entry-status {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .entry-message-admin {
+            color: #333;
+            line-height: 1.6;
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+
+        .entry-actions-admin {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .guestbook-stats {
+                flex-direction: column;
+            }
+
+            .entry-header-admin {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     `;
 

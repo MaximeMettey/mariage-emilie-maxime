@@ -544,10 +544,35 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Initialiser la navigation selon la configuration
+async function initializeNavigation() {
+    try {
+        // Récupérer la configuration
+        const response = await fetch('/api/admin/settings');
+        const config = await response.json();
+
+        // Masquer le lien prestataires si désactivé
+        const providersNavLink = document.getElementById('providersNavLink');
+        if (providersNavLink && config.providers && !config.providers.enabled) {
+            providersNavLink.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'initialisation de la navigation:', error);
+    }
+}
+
+// Appeler l'initialisation de la navigation au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeNavigation);
+} else {
+    initializeNavigation();
+}
+
 // Enregistrer les routes
 if (typeof router !== 'undefined') {
     router.register('welcome', renderWelcomeView);
     router.register('gallery', renderGalleryView);
     router.register('providers', renderProvidersView);
+    router.register('guestbook', renderGuestbookView);
     router.register('admin', renderAdminDashboard);
 }

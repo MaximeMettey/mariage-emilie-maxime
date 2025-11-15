@@ -1,5 +1,6 @@
 // État du lecteur de musique
 let musicTracks = [];
+let musicSettings = { enabled: true, autoplay: true };
 let currentTrackIndex = 0;
 let isPlaying = false;
 let isMuted = false;
@@ -22,13 +23,27 @@ async function loadMusicTracks() {
         const response = await fetch('/api/music');
         const data = await response.json();
 
+        // Récupérer les paramètres de musique
+        if (data.settings) {
+            musicSettings = data.settings;
+        }
+
+        // Si le lecteur est désactivé, masquer le player
+        const musicPlayer = document.getElementById('musicPlayer');
+        if (musicPlayer && !musicSettings.enabled) {
+            musicPlayer.style.display = 'none';
+            return;
+        }
+
         if (data.tracks && data.tracks.length > 0) {
             musicTracks = data.tracks;
             loadTrack(0);
             currentTrackDisplay.textContent = musicTracks[0].name;
 
-            // Tenter le démarrage automatique après un court délai
-            setTimeout(tryAutoplay, 100);
+            // Tenter le démarrage automatique après un court délai si autoplay est activé
+            if (musicSettings.autoplay) {
+                setTimeout(tryAutoplay, 100);
+            }
         } else {
             currentTrackDisplay.textContent = 'Aucune musique';
             musicToggle.disabled = true;
@@ -42,7 +57,7 @@ async function loadMusicTracks() {
 
 // Tenter de démarrer automatiquement
 function tryAutoplay() {
-    if (!isPlaying && musicTracks.length > 0) {
+    if (!isPlaying && musicTracks.length > 0 && musicSettings.autoplay) {
         audioPlayer.play().then(() => {
             isPlaying = true;
             hasUserInteracted = true;
@@ -143,9 +158,9 @@ audioPlayer.addEventListener('loadedmetadata', () => {
     }
 });
 
-// Démarrer au premier clic sur la page si l'autoplay n'a pas fonctionné
+// Démarrer au premier clic sur la page si l'autoplay n'a pas fonctionné (et si autoplay est activé)
 document.addEventListener('click', function autoplayOnInteraction() {
-    if (!hasUserInteracted && musicTracks.length > 0) {
+    if (!hasUserInteracted && musicTracks.length > 0 && musicSettings.autoplay) {
         hasUserInteracted = true;
         audioPlayer.play().then(() => {
             isPlaying = true;

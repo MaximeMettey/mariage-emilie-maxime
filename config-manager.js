@@ -206,6 +206,54 @@ class ConfigManager {
   }
 
   /**
+   * Récupère la configuration des musiques
+   */
+  getMusicSettings() {
+    return this.config?.music || {
+      enabled: true,
+      autoplay: true
+    };
+  }
+
+  /**
+   * Met à jour la configuration des musiques
+   */
+  updateMusicSettings(musicSettings) {
+    if (!this.config) return false;
+
+    this.config.music = {
+      enabled: musicSettings.enabled !== undefined ? musicSettings.enabled : true,
+      autoplay: musicSettings.autoplay !== undefined ? musicSettings.autoplay : true
+    };
+    this.config.updatedAt = new Date().toISOString();
+
+    return this.saveConfig(this.config);
+  }
+
+  /**
+   * Récupère la configuration de la page prestataires
+   */
+  getProvidersSettings() {
+    return this.config?.providers || {
+      enabled: true
+    };
+  }
+
+  /**
+   * Met à jour la configuration de la page prestataires
+   */
+  updateProvidersSettings(providersSettings) {
+    if (!this.config) return false;
+
+    this.config.providers = {
+      enabled: providersSettings.enabled !== undefined ? providersSettings.enabled : true
+    };
+    this.config.updatedAt = new Date().toISOString();
+
+    return this.saveConfig(this.config);
+  }
+
+  /**
    * Récupère la configuration complète (sans les mots de passe)
    */
   getPublicConfig() {
@@ -222,6 +270,8 @@ class ConfigManager {
         // On ne renvoie pas le mot de passe SMTP
       },
       welcome: this.config.welcome,
+      music: this.getMusicSettings(),
+      providers: this.getProvidersSettings(),
       updatedAt: this.config.updatedAt
     };
   }

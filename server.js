@@ -13,6 +13,7 @@ const multer = require('multer');
 const nodemailer = require('nodemailer');
 const AdmZip = require('adm-zip');
 const configManager = require('./config-manager');
+const guestbookManager = require('./guestbook-manager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -465,13 +466,19 @@ app.get('/api/media', requireAuth, async (req, res) => {
   }
 });
 
-// Route pour obtenir la liste des musiques
+// Route pour obtenir la liste des musiques et la configuration
 app.get('/api/music', requireAuth, async (req, res) => {
   try {
+    // Récupérer la configuration musicale
+    const musicSettings = configManager.getMusicSettings();
+
     // Créer le dossier music s'il n'existe pas
     if (!fsSync.existsSync(MUSIC_DIR)) {
       await fs.mkdir(MUSIC_DIR, { recursive: true });
-      return res.json({ tracks: [] });
+      return res.json({
+        tracks: [],
+        settings: musicSettings
+      });
     }
 
     const files = await fs.readdir(MUSIC_DIR);
@@ -485,7 +492,10 @@ app.get('/api/music', requireAuth, async (req, res) => {
       path: `/music/${file}`
     }));
 
-    res.json({ tracks });
+    res.json({
+      tracks,
+      settings: musicSettings
+    });
   } catch (error) {
     console.error('Erreur lors de la récupération des musiques:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des musiques' });
@@ -632,6 +642,70 @@ app.post('/api/admin/settings/smtp', requireAdmin, (req, res) => {
   }
 });
 
+app.get('/api/admin/settings/music', requireAdmin, (req, res) => {
+  try {
+    const musicSettings = configManager.getMusicSettings();
+    res.json(musicSettings);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des paramètres musicaux:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/music', requireAdmin, (req, res) => {
+  try {
+    const musicSettings = req.body;
+
+    const success = configManager.updateMusicSettings(musicSettings);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Configuration musicale mise à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de la configuration musicale'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la configuration musicale:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.get('/api/admin/settings/providers', requireAdmin, (req, res) => {
+  try {
+    const providersSettings = configManager.getProvidersSettings();
+    res.json(providersSettings);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des paramètres prestataires:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/providers', requireAdmin, (req, res) => {
+  try {
+    const providersSettings = req.body;
+
+    const success = configManager.updateProvidersSettings(providersSettings);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Configuration de la page prestataires mise à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de la configuration'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la configuration prestataires:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 app.post('/api/admin/settings/welcome', requireAdmin, (req, res) => {
   try {
     const welcomeConfig = req.body;
@@ -657,10 +731,17 @@ app.post('/api/admin/settings/welcome', requireAdmin, (req, res) => {
 // Route pour obtenir la liste des prestataires
 app.get('/api/providers', requireAuth, (req, res) => {
   try {
+    // Vérifier si la page prestataires est activée
+    const providersSettings = configManager.getProvidersSettings();
+
+    if (!providersSettings.enabled) {
+      return res.json({ providers: [], enabled: false });
+    }
+
     const providersPath = path.join(__dirname, 'providers.json');
     const providersData = fsSync.readFileSync(providersPath, 'utf8');
     const providers = JSON.parse(providersData);
-    res.json(providers);
+    res.json({ ...providers, enabled: true });
   } catch (error) {
     console.error('Erreur lors de la lecture des prestataires:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des prestataires' });
@@ -758,6 +839,84 @@ app.delete('/api/admin/providers/:id', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la suppression du prestataire:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du prestataire' });
+  }
+});
+
+// ============================================
+// ROUTES DU LIVRE D'OR
+// ============================================
+
+// Soumettre un message (public, authentifié)
+app.post('/api/guestbook', requireAuth, (req, res) => {
+  try {
+    const { name, message } = req.body;
+    const ip = req.ip || req.connection.remoteAddress;
+
+    const result = guestbookManager.addEntry(name, message, ip);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du message:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du message' });
+  }
+});
+
+// Récupérer les messages approuvés (public, authentifié)
+app.get('/api/guestbook', requireAuth, (req, res) => {
+  try {
+    const entries = guestbookManager.getApprovedEntries();
+    res.json({ entries });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des messages:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
+// Récupérer tous les messages pour modération (admin uniquement)
+app.get('/api/admin/guestbook', requireAdmin, (req, res) => {
+  try {
+    const entries = guestbookManager.getAllEntries();
+    const stats = guestbookManager.getStats();
+    res.json({ entries, stats });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des messages:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
+// Approuver un message
+app.post('/api/admin/guestbook/approve/:id', requireAdmin, (req, res) => {
+  try {
+    const result = guestbookManager.approveEntry(req.params.id);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'approbation du message:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'approbation du message' });
+  }
+});
+
+// Supprimer un message
+app.delete('/api/admin/guestbook/:id', requireAdmin, (req, res) => {
+  try {
+    const result = guestbookManager.rejectEntry(req.params.id);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression du message:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du message' });
   }
 });
 
