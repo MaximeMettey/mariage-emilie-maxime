@@ -1623,6 +1623,42 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 // Routes d'administration pour la validation des uploads
 
 // Lister les uploads en attente
+// Fonction récursive pour lire les fichiers dans les sous-dossiers
+async function readPendingFilesRecursive(dir, baseDir = dir, filesList = []) {
+  const items = await fs.readdir(dir, { withFileTypes: true });
+
+  for (const item of items) {
+    const fullPath = path.join(dir, item.name);
+
+    if (item.isDirectory()) {
+      // Lire récursivement les sous-dossiers
+      await readPendingFilesRecursive(fullPath, baseDir, filesList);
+    } else if (item.isFile()) {
+      const ext = path.extname(item.name).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+      const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
+
+      if (isImage || isVideo) {
+        const stats = await fs.stat(fullPath);
+        const relativePath = path.relative(baseDir, fullPath);
+        const webPath = `/media/Photos Invités/Pending/${relativePath}`.replace(/\\/g, '/');
+
+        filesList.push({
+          name: relativePath.replace(/\\/g, '/'), // Utiliser le chemin relatif complet
+          displayName: path.basename(item.name), // Juste le nom du fichier pour l'affichage
+          folderPath: path.dirname(relativePath).replace(/\\/g, '/'), // Chemin du dossier
+          path: webPath,
+          type: isImage ? 'image' : 'video',
+          size: stats.size,
+          uploadedAt: stats.mtime.toISOString()
+        });
+      }
+    }
+  }
+
+  return filesList;
+}
+
 app.get('/api/admin/pending-uploads', requireAdmin, async (req, res) => {
   try {
     // Créer le dossier s'il n'existe pas
@@ -1631,26 +1667,7 @@ app.get('/api/admin/pending-uploads', requireAdmin, async (req, res) => {
       return res.json({ files: [] });
     }
 
-    const files = await fs.readdir(PENDING_UPLOADS_DIR);
-    const pendingFiles = [];
-
-    for (const file of files) {
-      const filePath = path.join(PENDING_UPLOADS_DIR, file);
-      const stats = await fs.stat(filePath);
-      const ext = path.extname(file).toLowerCase();
-      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
-      const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
-
-      if (isImage || isVideo) {
-        pendingFiles.push({
-          name: file,
-          path: `/media/Photos Invités/Pending/${file}`,
-          type: isImage ? 'image' : 'video',
-          size: stats.size,
-          uploadedAt: stats.mtime.toISOString()
-        });
-      }
-    }
+    const pendingFiles = await readPendingFilesRecursive(PENDING_UPLOADS_DIR);
 
     // Trier par date d'upload (plus récent en premier)
     pendingFiles.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));

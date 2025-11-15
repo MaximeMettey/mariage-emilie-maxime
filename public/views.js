@@ -1240,7 +1240,10 @@ function addGuestbookStyles() {
         .guestbook-page {
             min-height: 100vh;
             padding: 80px 20px 40px;
-            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            background:
+                radial-gradient(circle at 10% 20%, rgba(139, 21, 56, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 21, 56, 0.12) 0%, transparent 40%),
+                linear-gradient(135deg, #0a0a0a 0%, #141414 50%, #1a1a1a 100%);
         }
 
         .guestbook-container {
@@ -1254,26 +1257,33 @@ function addGuestbookStyles() {
         }
 
         .guestbook-header h1 {
-            color: #8b1538;
+            background: linear-gradient(135deg, #d4af37 0%, #f0d06b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             font-size: 2.5rem;
             margin-bottom: 10px;
         }
 
         .guestbook-header p {
-            color: #666;
+            color: #9e9e9e;
             font-size: 1.1rem;
         }
 
         .guestbook-form-card {
-            background: white;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 175, 55, 0.3);
             margin-bottom: 40px;
         }
 
         .guestbook-form-card h2 {
-            color: #c9a66b;
+            background: linear-gradient(135deg, #d4af37 0%, #f0d06b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-top: 0;
             margin-bottom: 20px;
         }
@@ -1286,20 +1296,28 @@ function addGuestbookStyles() {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #333;
+            color: #e0e0e0;
         }
 
         .guestbook-form-card input[type="text"],
         .guestbook-form-card textarea {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid rgba(212, 175, 55, 0.3);
             border-radius: 5px;
             font-size: 14px;
             font-family: inherit;
             box-sizing: border-box;
-            color: #333;
-            background: white;
+            color: #ffffff;
+            background: rgba(10, 10, 10, 0.8);
+            transition: all 0.3s ease;
+        }
+
+        .guestbook-form-card input[type="text"]:focus,
+        .guestbook-form-card textarea:focus {
+            outline: none;
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
         }
 
         .guestbook-form-card textarea {
@@ -1309,26 +1327,25 @@ function addGuestbookStyles() {
         .guestbook-form-card small {
             display: block;
             margin-top: 5px;
-            color: #666;
+            color: #9e9e9e;
             font-size: 12px;
         }
 
         .btn-primary {
-            background: #c9a66b;
-            color: white;
+            background: linear-gradient(135deg, #d4af37 0%, #f0d06b 100%);
+            color: #0a0a0a;
             padding: 12px 30px;
             border: none;
             border-radius: 5px;
             font-size: 16px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
         }
 
         .btn-primary:hover {
-            background: #b8955a;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(201, 166, 107, 0.3);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.5);
         }
 
         .btn-primary:active {
@@ -1336,14 +1353,18 @@ function addGuestbookStyles() {
         }
 
         .guestbook-entries {
-            background: white;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 175, 55, 0.3);
         }
 
         .guestbook-entries h2 {
-            color: #c9a66b;
+            background: linear-gradient(135deg, #d4af37 0%, #f0d06b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-top: 0;
             margin-bottom: 20px;
         }
@@ -1356,9 +1377,10 @@ function addGuestbookStyles() {
 
         .guestbook-entry {
             padding: 20px;
-            background: #f9f9f9;
-            border-left: 4px solid #c9a66b;
+            background: rgba(10, 10, 10, 0.6);
+            border-left: 4px solid #d4af37;
             border-radius: 5px;
+            border: 1px solid rgba(212, 175, 55, 0.1);
         }
 
         .entry-header {
@@ -1369,17 +1391,18 @@ function addGuestbookStyles() {
         }
 
         .entry-name {
-            color: #8b1538;
+            color: #d4af37;
             font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .entry-date {
-            color: #999;
+            color: #9e9e9e;
             font-size: 0.9rem;
         }
 
         .entry-message {
-            color: #333;
+            color: #e0e0e0;
             line-height: 1.6;
             margin: 0;
             white-space: pre-wrap;
@@ -1388,7 +1411,7 @@ function addGuestbookStyles() {
         .empty-state {
             text-align: center;
             padding: 40px;
-            color: #999;
+            color: #9e9e9e;
         }
 
         @media (max-width: 768px) {

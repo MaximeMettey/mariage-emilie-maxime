@@ -134,12 +134,14 @@ async function renderUploadsTab(container) {
         for (const file of data.files) {
             const uploadDate = new Date(file.uploadedAt).toLocaleString('fr-FR');
             const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            const folderDisplay = file.folderPath && file.folderPath !== '.' ? `📁 ${file.folderPath}/` : '';
+            const escapedName = file.name.replace(/'/g, "\\'");
 
             html += `
                 <div class="pending-upload-card" data-filename="${file.name}">
                     <div class="upload-preview">
                         ${file.type === 'image' ?
-                            `<img src="${file.path}" alt="${file.name}" onclick="openLightbox('${file.path}', 'image')">` :
+                            `<img src="${file.path}" alt="${file.displayName}" onclick="openLightbox('${file.path}', 'image')">` :
                             `<div class="video-preview" onclick="openLightbox('${file.path}', 'video')">
                                 <span class="play-icon">▶️</span>
                                 <p>Vidéo</p>
@@ -147,12 +149,13 @@ async function renderUploadsTab(container) {
                         }
                     </div>
                     <div class="upload-info">
-                        <p class="file-name">${file.name}</p>
+                        ${folderDisplay ? `<p class="file-folder">${folderDisplay}</p>` : ''}
+                        <p class="file-name" title="${file.name}">${file.displayName}</p>
                         <p class="file-meta">📅 ${uploadDate} | 💾 ${fileSize} MB</p>
                     </div>
                     <div class="upload-actions">
-                        <button class="btn btn-success btn-sm" onclick="approveUpload('${file.name}')">✓ Valider</button>
-                        <button class="btn btn-danger btn-sm" onclick="rejectUpload('${file.name}')">✗ Rejeter</button>
+                        <button class="btn btn-success btn-sm" onclick="approveUpload('${escapedName}')">✓</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectUpload('${escapedName}')">✗</button>
                     </div>
                 </div>
             `;
@@ -868,26 +871,51 @@ function addAdminStyles() {
 
         .admin-dashboard .upload-info {
             padding: 10px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
-        .admin-dashboard .file-name {
+        .admin-dashboard .file-folder {
+            font-size: 11px;
+            color: #c9a66b;
+            margin: 0 0 2px 0;
             font-weight: 500;
-            margin: 0 0 5px 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
+        .admin-dashboard .file-name {
+            font-weight: 600;
+            margin: 0 0 5px 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #333;
+            font-size: 14px;
+        }
+
         .admin-dashboard .file-meta {
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
             margin: 0;
         }
 
         .admin-dashboard .upload-actions {
-            padding: 10px;
+            padding: 8px 10px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            justify-content: center;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .admin-dashboard .upload-actions .btn-sm {
+            flex: 1;
+            max-width: 80px;
+            padding: 6px 10px;
+            font-size: 18px;
         }
 
         .admin-dashboard .providers-grid {
