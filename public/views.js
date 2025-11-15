@@ -1298,6 +1298,8 @@ function addGuestbookStyles() {
             font-size: 14px;
             font-family: inherit;
             box-sizing: border-box;
+            color: #333;
+            background: white;
         }
 
         .guestbook-form-card textarea {
@@ -1309,6 +1311,28 @@ function addGuestbookStyles() {
             margin-top: 5px;
             color: #666;
             font-size: 12px;
+        }
+
+        .btn-primary {
+            background: #c9a66b;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #b8955a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(201, 166, 107, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .guestbook-entries {
