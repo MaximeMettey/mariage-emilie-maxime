@@ -150,6 +150,36 @@
             width: auto;
         }
 
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 45px;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            color: #666;
+            transition: color 0.3s ease;
+        }
+
+        .password-toggle:hover {
+            color: #c9a66b;
+        }
+
+        .password-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
+
         .form-actions {
             display: flex;
             justify-content: space-between;
@@ -303,26 +333,58 @@
 
                 <div class="form-group">
                     <label for="adminPassword">Mot de passe administrateur *</label>
-                    <input type="password" id="adminPassword" name="adminPassword" required minlength="6">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="adminPassword" name="adminPassword" required minlength="6">
+                        <button type="button" class="password-toggle" onclick="togglePassword('adminPassword')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                     <div class="password-strength" id="adminPasswordStrength"></div>
                     <small>Ce mot de passe vous permettra d'accéder aux fonctions d'administration (minimum 6 caractères)</small>
                 </div>
 
                 <div class="form-group">
                     <label for="adminPasswordConfirm">Confirmez le mot de passe administrateur *</label>
-                    <input type="password" id="adminPasswordConfirm" name="adminPasswordConfirm" required minlength="6">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="adminPasswordConfirm" name="adminPasswordConfirm" required minlength="6">
+                        <button type="button" class="password-toggle" onclick="togglePassword('adminPasswordConfirm')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="publicPassword">Mot de passe invités *</label>
-                    <input type="password" id="publicPassword" name="publicPassword" required minlength="4">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="publicPassword" name="publicPassword" required minlength="4">
+                        <button type="button" class="password-toggle" onclick="togglePassword('publicPassword')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                     <div class="password-strength" id="publicPasswordStrength"></div>
                     <small>Ce mot de passe sera partagé avec vos invités (minimum 4 caractères)</small>
                 </div>
 
                 <div class="form-group">
                     <label for="publicPasswordConfirm">Confirmez le mot de passe invités *</label>
-                    <input type="password" id="publicPasswordConfirm" name="publicPasswordConfirm" required minlength="4">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="publicPasswordConfirm" name="publicPasswordConfirm" required minlength="4">
+                        <button type="button" class="password-toggle" onclick="togglePassword('publicPasswordConfirm')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -379,7 +441,15 @@
 
                     <div class="form-group">
                         <label for="smtpPass">Mot de passe SMTP</label>
-                        <input type="password" id="smtpPass" name="smtpPass">
+                        <div class="password-input-wrapper">
+                            <input type="password" id="smtpPass" name="smtpPass">
+                            <button type="button" class="password-toggle" onclick="togglePassword('smtpPass')" tabindex="-1">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
                         <small>Pour Gmail, utilisez un "mot de passe d'application"</small>
                     </div>
                 </div>
