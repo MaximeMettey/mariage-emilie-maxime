@@ -524,7 +524,11 @@ async function renderGalleryTab(container) {
                 <div class="category-section">
                     <div class="category-header">
                         <h3>📁 ${category.category}</h3>
-                        <button class="btn btn-secondary btn-sm" onclick="showAddFolderModal('${category.category}')">+ Nouveau dossier</button>
+                        <div class="category-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="showAddFolderModal('${category.category}')">+ Nouveau dossier</button>
+                            <button class="btn btn-secondary btn-sm" onclick="renameCategory('${category.category}')">✏️ Renommer</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteCategory('${category.category}')">🗑️ Supprimer</button>
+                        </div>
                     </div>
                     <div class="folders-list">
             `;
@@ -533,7 +537,11 @@ async function renderGalleryTab(container) {
                 html += `
                     <div class="folder-item">
                         <span>📂 ${folder}</span>
-                        <button class="btn btn-primary btn-sm" onclick="showUploadMediaModal('${category.category}', '${folder}')">⬆️ Upload</button>
+                        <div class="folder-actions">
+                            <button class="btn btn-primary btn-sm" onclick="showUploadMediaModal('${category.category}', '${folder}')">⬆️ Upload</button>
+                            <button class="btn btn-secondary btn-sm" onclick="renameFolder('${category.category}', '${folder}')">✏️ Renommer</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFolder('${category.category}', '${folder}')">🗑️ Supprimer</button>
+                        </div>
                     </div>
                 `;
             }
@@ -953,6 +961,17 @@ function addAdminStyles() {
             padding: 10px;
             background: #f9f9f9;
             border-radius: 5px;
+        }
+
+        .admin-dashboard .category-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .admin-dashboard .folder-actions {
+            display: flex;
+            gap: 5px;
         }
 
         .modal {

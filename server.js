@@ -1257,6 +1257,149 @@ app.delete('/api/admin/gallery/file', requireAdmin, async (req, res) => {
   }
 });
 
+// Supprimer une catégorie (et tout son contenu)
+app.delete('/api/admin/gallery/category/:categoryName', requireAdmin, async (req, res) => {
+  try {
+    const { categoryName } = req.params;
+
+    if (!categoryName || categoryName.trim() === '') {
+      return res.status(400).json({ error: 'Nom de catégorie requis' });
+    }
+
+    const categoryPath = path.join(MEDIA_DIR, categoryName);
+
+    // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+    if (!categoryPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(categoryPath)) {
+      return res.status(404).json({ error: 'Catégorie non trouvée' });
+    }
+
+    // Supprimer récursivement le dossier et tout son contenu
+    await fs.rm(categoryPath, { recursive: true, force: true });
+
+    res.json({
+      success: true,
+      message: 'Catégorie supprimée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la catégorie' });
+  }
+});
+
+// Renommer une catégorie
+app.put('/api/admin/gallery/category/:oldName', requireAdmin, async (req, res) => {
+  try {
+    const { oldName } = req.params;
+    const { newName } = req.body;
+
+    if (!oldName || !newName || newName.trim() === '') {
+      return res.status(400).json({ error: 'Ancien et nouveau nom requis' });
+    }
+
+    const oldPath = path.join(MEDIA_DIR, oldName);
+    const newPath = path.join(MEDIA_DIR, newName);
+
+    // Vérifier que les chemins sont bien dans MEDIA_DIR (sécurité)
+    if (!oldPath.startsWith(MEDIA_DIR) || !newPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(oldPath)) {
+      return res.status(404).json({ error: 'Catégorie non trouvée' });
+    }
+
+    if (fsSync.existsSync(newPath)) {
+      return res.status(400).json({ error: 'Une catégorie avec ce nom existe déjà' });
+    }
+
+    // Renommer le dossier
+    await fs.rename(oldPath, newPath);
+
+    res.json({
+      success: true,
+      message: 'Catégorie renommée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors du renommage de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur lors du renommage de la catégorie' });
+  }
+});
+
+// Supprimer un dossier (et tout son contenu)
+app.delete('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
+  try {
+    const { category, folderName } = req.body;
+
+    if (!category || !folderName || folderName.trim() === '') {
+      return res.status(400).json({ error: 'Catégorie et nom de dossier requis' });
+    }
+
+    const folderPath = path.join(MEDIA_DIR, category, folderName);
+
+    // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+    if (!folderPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+
+    // Supprimer récursivement le dossier et tout son contenu
+    await fs.rm(folderPath, { recursive: true, force: true });
+
+    res.json({
+      success: true,
+      message: 'Dossier supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression du dossier:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du dossier' });
+  }
+});
+
+// Renommer un dossier
+app.put('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
+  try {
+    const { category, oldName, newName } = req.body;
+
+    if (!category || !oldName || !newName || newName.trim() === '') {
+      return res.status(400).json({ error: 'Catégorie, ancien et nouveau nom requis' });
+    }
+
+    const oldPath = path.join(MEDIA_DIR, category, oldName);
+    const newPath = path.join(MEDIA_DIR, category, newName);
+
+    // Vérifier que les chemins sont bien dans MEDIA_DIR (sécurité)
+    if (!oldPath.startsWith(MEDIA_DIR) || !newPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(oldPath)) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+
+    if (fsSync.existsSync(newPath)) {
+      return res.status(400).json({ error: 'Un dossier avec ce nom existe déjà' });
+    }
+
+    // Renommer le dossier
+    await fs.rename(oldPath, newPath);
+
+    res.json({
+      success: true,
+      message: 'Dossier renommé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors du renommage du dossier:', error);
+    res.status(500).json({ error: 'Erreur lors du renommage du dossier' });
+  }
+});
+
 // Route pour télécharger tous les médias en ZIP
 app.get('/api/download-all', requireAuth, async (req, res) => {
   try {

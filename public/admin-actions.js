@@ -608,6 +608,112 @@ async function createFolder(event) {
     }
 }
 
+async function deleteCategory(categoryName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la catégorie "${categoryName}" et tout son contenu ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/gallery/category/${encodeURIComponent(categoryName)}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
+    }
+}
+
+async function renameCategory(oldName) {
+    const newName = prompt(`Renommer la catégorie "${oldName}" :`, oldName);
+
+    if (!newName || newName.trim() === '' || newName === oldName) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/gallery/category/${encodeURIComponent(oldName)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newName: newName.trim() })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors du renommage', 'error');
+    }
+}
+
+async function deleteFolder(category, folderName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le dossier "${folderName}" et tout son contenu ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/gallery/folder', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, folderName })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
+    }
+}
+
+async function renameFolder(category, oldName) {
+    const newName = prompt(`Renommer le dossier "${oldName}" :`, oldName);
+
+    if (!newName || newName.trim() === '' || newName === oldName) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/gallery/folder', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, oldName, newName: newName.trim() })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors du renommage', 'error');
+    }
+}
+
 function showUploadMediaModal(category, folder) {
     document.getElementById('uploadCategory').value = category;
     document.getElementById('uploadFolder').value = folder;
