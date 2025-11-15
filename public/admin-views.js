@@ -615,6 +615,8 @@ function addAdminStyles() {
             border-radius: 5px;
             font-size: 14px;
             box-sizing: border-box;
+            color: #333;
+            background: white;
         }
 
         .form-group small {
