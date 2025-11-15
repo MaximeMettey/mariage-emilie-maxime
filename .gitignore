@@ -9,3 +9,4 @@ public/images/*
 !public/images/.gitkeep
 *.log
 .DS_Store
+app-config.json

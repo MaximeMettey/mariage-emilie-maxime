@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const AdmZip = require('adm-zip');
+const configManager = require('./config-manager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,22 +24,42 @@ const MUSIC_DIR = path.join(__dirname, 'music');
 const PENDING_UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Pending');
 const UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Uploads');
 
-// Configuration email
+// Configuration email - sera initialisée depuis la config ou .env
 let emailTransporter = null;
-if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-  emailTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
-  console.log('📧 Configuration email SMTP activée');
-} else {
-  console.log('⚠️  Configuration email SMTP non configurée - les notifications ne seront pas envoyées');
+
+function initializeEmailTransporter() {
+  const smtpConfig = configManager.getSmtpConfig();
+
+  if (smtpConfig && smtpConfig.enabled && smtpConfig.host && smtpConfig.user && smtpConfig.pass) {
+    emailTransporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port || 587,
+      secure: smtpConfig.secure || false,
+      auth: {
+        user: smtpConfig.user,
+        pass: smtpConfig.pass
+      }
+    });
+    console.log('📧 Configuration email SMTP activée');
+  } else if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // Fallback vers .env si la config n'existe pas encore
+    emailTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+    console.log('📧 Configuration email SMTP activée (depuis .env)');
+  } else {
+    console.log('⚠️  Configuration email SMTP non configurée - les notifications ne seront pas envoyées');
+  }
 }
+
+// Initialiser l'email transporter
+initializeEmailTransporter();
 
 // Middleware
 app.use(express.json());
@@ -53,6 +74,30 @@ app.use(session({
     httpOnly: true
   }
 }));
+
+// Middleware de vérification du setup
+const requireSetup = (req, res, next) => {
+  // Ne pas rediriger pour les routes de setup et les fichiers statiques
+  if (req.path === '/setup.html' || req.path === '/setup.js' ||
+      req.path.startsWith('/api/setup') || req.path.startsWith('/api/check-setup')) {
+    return next();
+  }
+
+  // Vérifier si le setup est complet
+  if (!configManager.isSetupComplete()) {
+    // Si c'est une requête API, retourner une erreur JSON
+    if (req.path.startsWith('/api/')) {
+      return res.status(503).json({
+        error: 'Setup requis',
+        setupRequired: true
+      });
+    }
+    // Sinon, rediriger vers la page de setup
+    return res.redirect('/setup.html');
+  }
+
+  next();
+};
 
 // Middleware d'authentification
 const requireAuth = (req, res, next) => {
@@ -78,25 +123,103 @@ app.use('/media', requireAuth, express.static(MEDIA_DIR));
 app.use('/thumbnails', requireAuth, express.static(THUMBNAILS_DIR));
 app.use('/music', requireAuth, express.static(MUSIC_DIR));
 
-// Routes d'authentification
-app.post('/api/login', (req, res) => {
-  const { code } = req.body;
+// Routes de setup (avant requireSetup middleware)
+app.get('/api/check-setup', (req, res) => {
+  res.json({
+    setupComplete: configManager.isSetupComplete()
+  });
+});
 
-  // Vérifier si c'est un code admin
-  if (code === ADMIN_CODE) {
-    req.session.authenticated = true;
-    req.session.role = 'admin';
-    res.json({ success: true, role: 'admin' });
+app.post('/api/setup', async (req, res) => {
+  try {
+    // Vérifier que le setup n'a pas déjà été fait
+    if (configManager.isSetupComplete()) {
+      return res.status(400).json({
+        error: 'La configuration a déjà été effectuée'
+      });
+    }
+
+    const setupData = req.body;
+
+    // Validation basique
+    if (!setupData.adminPassword || !setupData.publicPassword) {
+      return res.status(400).json({
+        error: 'Les mots de passe sont requis'
+      });
+    }
+
+    if (setupData.adminPassword.length < 6) {
+      return res.status(400).json({
+        error: 'Le mot de passe administrateur doit contenir au moins 6 caractères'
+      });
+    }
+
+    if (setupData.publicPassword.length < 4) {
+      return res.status(400).json({
+        error: 'Le mot de passe invités doit contenir au moins 4 caractères'
+      });
+    }
+
+    if (setupData.adminPassword === setupData.publicPassword) {
+      return res.status(400).json({
+        error: 'Les mots de passe administrateur et invités doivent être différents'
+      });
+    }
+
+    // Initialiser la configuration
+    const success = await configManager.initializeSetup(setupData);
+
+    if (success) {
+      // Réinitialiser l'email transporter avec la nouvelle config
+      initializeEmailTransporter();
+
+      res.json({
+        success: true,
+        message: 'Configuration initiale effectuée avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la sauvegarde de la configuration'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors du setup:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la configuration',
+      message: error.message
+    });
   }
-  // Vérifier si c'est un code invité
-  else if (code === ACCESS_CODE) {
-    req.session.authenticated = true;
-    req.session.role = 'guest';
-    res.json({ success: true, role: 'guest' });
-  }
-  // Code incorrect
-  else {
+});
+
+// Appliquer le middleware de vérification du setup à toutes les routes suivantes
+app.use(requireSetup);
+
+// Routes d'authentification
+app.post('/api/login', async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    // Vérifier si c'est un code admin
+    const isAdmin = await configManager.verifyAdminPassword(code);
+    if (isAdmin) {
+      req.session.authenticated = true;
+      req.session.role = 'admin';
+      return res.json({ success: true, role: 'admin' });
+    }
+
+    // Vérifier si c'est un code invité
+    const isGuest = await configManager.verifyPublicPassword(code);
+    if (isGuest) {
+      req.session.authenticated = true;
+      req.session.role = 'guest';
+      return res.json({ success: true, role: 'guest' });
+    }
+
+    // Code incorrect
     res.status(401).json({ error: 'Code d\'accès incorrect' });
+  } catch (error) {
+    console.error('Erreur lors de l\'authentification:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'authentification' });
   }
 });
 
@@ -371,11 +494,164 @@ app.get('/api/music', requireAuth, async (req, res) => {
 
 // Route pour obtenir la configuration
 app.get('/api/config', requireAuth, (req, res) => {
+  const welcomeConfig = configManager.getWelcomeConfig();
   res.json({
-    welcomeTitle: process.env.WELCOME_TITLE || 'Merci d\'être venus !',
-    welcomeMessage: process.env.WELCOME_MESSAGE || 'Nous sommes ravis d\'avoir partagé ce moment avec vous. Retrouvez ici tous les souvenirs de notre journée magique.',
-    welcomeImage: process.env.WELCOME_IMAGE || '/images/welcome.jpg'
+    welcomeTitle: welcomeConfig.title,
+    welcomeMessage: welcomeConfig.message,
+    welcomeImage: welcomeConfig.image
   });
+});
+
+// Routes d'administration pour la gestion des paramètres
+app.get('/api/admin/settings', requireAdmin, (req, res) => {
+  const config = configManager.getPublicConfig();
+  res.json(config);
+});
+
+app.post('/api/admin/settings/admin-password', requireAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: 'Les mots de passe actuels et nouveaux sont requis'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: 'Le nouveau mot de passe doit contenir au moins 6 caractères'
+      });
+    }
+
+    // Vérifier le mot de passe actuel
+    const isValid = await configManager.verifyAdminPassword(currentPassword);
+    if (!isValid) {
+      return res.status(401).json({
+        error: 'Mot de passe actuel incorrect'
+      });
+    }
+
+    // Mettre à jour le mot de passe
+    const success = await configManager.updateAdminPassword(newPassword);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Mot de passe administrateur mis à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour du mot de passe'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du mot de passe admin:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/public-password', requireAdmin, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({
+        error: 'Le nouveau mot de passe est requis'
+      });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({
+        error: 'Le nouveau mot de passe doit contenir au moins 4 caractères'
+      });
+    }
+
+    const success = await configManager.updatePublicPassword(newPassword);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Mot de passe invités mis à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour du mot de passe'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du mot de passe public:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/email', requireAdmin, (req, res) => {
+  try {
+    const { adminEmail } = req.body;
+
+    const success = configManager.updateAdminEmail(adminEmail);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Email administrateur mis à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de l\'email'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'email:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/smtp', requireAdmin, (req, res) => {
+  try {
+    const smtpConfig = req.body;
+
+    const success = configManager.updateSmtpConfig(smtpConfig);
+
+    if (success) {
+      // Réinitialiser l'email transporter
+      initializeEmailTransporter();
+
+      res.json({
+        success: true,
+        message: 'Configuration SMTP mise à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de la configuration SMTP'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour SMTP:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/welcome', requireAdmin, (req, res) => {
+  try {
+    const welcomeConfig = req.body;
+
+    const success = configManager.updateWelcomeConfig(welcomeConfig);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Configuration de la page d\'accueil mise à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de la configuration'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la page d\'accueil:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 // Route pour obtenir la liste des prestataires
@@ -388,6 +664,358 @@ app.get('/api/providers', requireAuth, (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la lecture des prestataires:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des prestataires' });
+  }
+});
+
+// Routes CRUD pour la gestion des prestataires (admin uniquement)
+app.post('/api/admin/providers', requireAdmin, async (req, res) => {
+  try {
+    const providersPath = path.join(__dirname, 'providers.json');
+    const providersData = fsSync.readFileSync(providersPath, 'utf8');
+    const data = JSON.parse(providersData);
+
+    const newProvider = req.body;
+
+    // Générer un ID unique
+    newProvider.id = newProvider.name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+
+    // Ajouter le nouveau prestataire
+    data.providers.push(newProvider);
+
+    // Sauvegarder
+    await fs.writeFile(providersPath, JSON.stringify(data, null, 2), 'utf8');
+
+    res.json({
+      success: true,
+      provider: newProvider,
+      message: 'Prestataire ajouté avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du prestataire:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du prestataire' });
+  }
+});
+
+app.put('/api/admin/providers/:id', requireAdmin, async (req, res) => {
+  try {
+    const providersPath = path.join(__dirname, 'providers.json');
+    const providersData = fsSync.readFileSync(providersPath, 'utf8');
+    const data = JSON.parse(providersData);
+
+    const providerId = req.params.id;
+    const updatedProvider = req.body;
+
+    // Trouver l'index du prestataire
+    const index = data.providers.findIndex(p => p.id === providerId);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Prestataire non trouvé' });
+    }
+
+    // Conserver l'ID original
+    updatedProvider.id = providerId;
+
+    // Mettre à jour
+    data.providers[index] = updatedProvider;
+
+    // Sauvegarder
+    await fs.writeFile(providersPath, JSON.stringify(data, null, 2), 'utf8');
+
+    res.json({
+      success: true,
+      provider: updatedProvider,
+      message: 'Prestataire mis à jour avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du prestataire:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du prestataire' });
+  }
+});
+
+app.delete('/api/admin/providers/:id', requireAdmin, async (req, res) => {
+  try {
+    const providersPath = path.join(__dirname, 'providers.json');
+    const providersData = fsSync.readFileSync(providersPath, 'utf8');
+    const data = JSON.parse(providersData);
+
+    const providerId = req.params.id;
+
+    // Filtrer le prestataire à supprimer
+    const originalLength = data.providers.length;
+    data.providers = data.providers.filter(p => p.id !== providerId);
+
+    if (data.providers.length === originalLength) {
+      return res.status(404).json({ error: 'Prestataire non trouvé' });
+    }
+
+    // Sauvegarder
+    await fs.writeFile(providersPath, JSON.stringify(data, null, 2), 'utf8');
+
+    res.json({
+      success: true,
+      message: 'Prestataire supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression du prestataire:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du prestataire' });
+  }
+});
+
+// Upload de logo pour un prestataire
+const providerLogoStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const logoDir = path.join(__dirname, 'public', 'images', 'providers');
+    try {
+      if (!fsSync.existsSync(logoDir)) {
+        await fs.mkdir(logoDir, { recursive: true });
+      }
+      cb(null, logoDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `provider-logo-${uniqueSuffix}${ext}`);
+  }
+});
+
+const providerLogoUpload = multer({
+  storage: providerLogoStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Seules les images sont autorisées'));
+    }
+  }
+});
+
+app.post('/api/admin/providers/upload-logo', requireAdmin, providerLogoUpload.single('logo'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier reçu' });
+    }
+
+    const logoPath = `/images/providers/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      logoPath: logoPath,
+      message: 'Logo uploadé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'upload du logo:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'upload du logo' });
+  }
+});
+
+// Routes pour la gestion de la galerie (admin uniquement)
+
+// Lister les catégories et dossiers
+app.get('/api/admin/gallery/structure', requireAdmin, async (req, res) => {
+  try {
+    const structure = [];
+
+    if (!fsSync.existsSync(MEDIA_DIR)) {
+      await fs.mkdir(MEDIA_DIR, { recursive: true });
+      return res.json({ structure: [] });
+    }
+
+    const categoryItems = await fs.readdir(MEDIA_DIR, { withFileTypes: true });
+
+    for (const categoryItem of categoryItems) {
+      if (categoryItem.isDirectory()) {
+        const categoryPath = path.join(MEDIA_DIR, categoryItem.name);
+        const subFolders = await fs.readdir(categoryPath, { withFileTypes: true });
+
+        const folders = subFolders
+          .filter(f => f.isDirectory())
+          .map(f => f.name);
+
+        structure.push({
+          category: categoryItem.name,
+          folders: folders
+        });
+      }
+    }
+
+    res.json({ structure });
+  } catch (error) {
+    console.error('Erreur lors de la récupération de la structure:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération de la structure' });
+  }
+});
+
+// Créer une nouvelle catégorie
+app.post('/api/admin/gallery/category', requireAdmin, async (req, res) => {
+  try {
+    const { categoryName } = req.body;
+
+    if (!categoryName || categoryName.trim() === '') {
+      return res.status(400).json({ error: 'Nom de catégorie requis' });
+    }
+
+    const categoryPath = path.join(MEDIA_DIR, categoryName);
+
+    if (fsSync.existsSync(categoryPath)) {
+      return res.status(400).json({ error: 'Cette catégorie existe déjà' });
+    }
+
+    await fs.mkdir(categoryPath, { recursive: true });
+
+    res.json({
+      success: true,
+      message: 'Catégorie créée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la création de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur lors de la création de la catégorie' });
+  }
+});
+
+// Créer un nouveau dossier dans une catégorie
+app.post('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
+  try {
+    const { category, folderName } = req.body;
+
+    if (!category || !folderName || folderName.trim() === '') {
+      return res.status(400).json({ error: 'Catégorie et nom de dossier requis' });
+    }
+
+    const folderPath = path.join(MEDIA_DIR, category, folderName);
+
+    // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+    if (!folderPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (fsSync.existsSync(folderPath)) {
+      return res.status(400).json({ error: 'Ce dossier existe déjà' });
+    }
+
+    await fs.mkdir(folderPath, { recursive: true });
+
+    res.json({
+      success: true,
+      message: 'Dossier créé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la création du dossier:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du dossier' });
+  }
+});
+
+// Upload de médias directement dans un dossier spécifique
+const galleryMediaStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    try {
+      const { category, folder } = req.body;
+
+      if (!category || !folder) {
+        return cb(new Error('Catégorie et dossier requis'));
+      }
+
+      const destPath = path.join(MEDIA_DIR, category, folder);
+
+      // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+      if (!destPath.startsWith(MEDIA_DIR)) {
+        return cb(new Error('Chemin invalide'));
+      }
+
+      // Créer le dossier s'il n'existe pas
+      if (!fsSync.existsSync(destPath)) {
+        await fs.mkdir(destPath, { recursive: true });
+      }
+
+      cb(null, destPath);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    // Utiliser le nom original du fichier
+    cb(null, file.originalname);
+  }
+});
+
+const galleryMediaUpload = multer({
+  storage: galleryMediaStorage,
+  limits: {
+    fileSize: 200 * 1024 * 1024, // 200MB max
+    files: 50 // 50 fichiers max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|mp4|webm|mov|avi|mkv/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Seules les images et vidéos sont autorisées'));
+    }
+  }
+});
+
+app.post('/api/admin/gallery/upload', requireAdmin, galleryMediaUpload.array('media', 50), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Aucun fichier reçu' });
+    }
+
+    const { category, folder } = req.body;
+
+    res.json({
+      success: true,
+      count: req.files.length,
+      message: `${req.files.length} fichier(s) uploadé(s) avec succès dans ${category}/${folder}`
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'upload des médias:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'upload des médias' });
+  }
+});
+
+// Supprimer un fichier média
+app.delete('/api/admin/gallery/file', requireAdmin, async (req, res) => {
+  try {
+    const { filePath } = req.body;
+
+    if (!filePath) {
+      return res.status(400).json({ error: 'Chemin du fichier requis' });
+    }
+
+    // Construire le chemin complet
+    const fullPath = path.join(__dirname, 'public', filePath);
+
+    // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+    const realMediaPath = path.join(__dirname, 'public', 'media');
+    if (!fullPath.startsWith(realMediaPath)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(fullPath)) {
+      return res.status(404).json({ error: 'Fichier non trouvé' });
+    }
+
+    await fs.unlink(fullPath);
+
+    res.json({
+      success: true,
+      message: 'Fichier supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression du fichier:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du fichier' });
   }
 });
 

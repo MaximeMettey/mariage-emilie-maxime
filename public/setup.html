@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration initiale - Galerie Mariage</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .setup-container {
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .setup-header h1 {
+            color: #c9a66b;
+            margin-bottom: 10px;
+        }
+
+        .setup-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            height: 2px;
+            background: #c9a66b;
+            transition: width 0.3s ease;
+            z-index: 1;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            background: white;
+            padding: 0 10px;
+        }
+
+        .progress-step-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active .progress-step-circle {
+            background: #c9a66b;
+        }
+
+        .progress-step.completed .progress-step-circle {
+            background: #4CAF50;
+        }
+
+        .progress-step-label {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .setup-step {
+            display: none;
+        }
+
+        .setup-step.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+            color: #333;
+            background: white;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .form-group .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 45px;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            color: #666;
+            transition: color 0.3s ease;
+        }
+
+        .password-toggle:hover {
+            color: #c9a66b;
+        }
+
+        .password-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #c9a66b;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #b8956a;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef5350;
+        }
+
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #66bb6a;
+        }
+
+        .smtp-toggle-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .password-strength {
+            height: 5px;
+            border-radius: 3px;
+            margin-top: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .strength-weak { background: #f44336; width: 33%; }
+        .strength-medium { background: #ff9800; width: 66%; }
+        .strength-strong { background: #4CAF50; width: 100%; }
+
+        .summary-section {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .summary-section h3 {
+            margin-top: 0;
+            color: #c9a66b;
+            font-size: 16px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .summary-value {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <div class="setup-header">
+            <h1>Configuration initiale</h1>
+            <p>Bienvenue ! Configurons votre galerie de mariage en quelques étapes simples.</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-step active" data-step="1">
+                <div class="progress-step-circle">1</div>
+                <div class="progress-step-label">Mots de passe</div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="progress-step-circle">2</div>
+                <div class="progress-step-label">Email</div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="progress-step-circle">3</div>
+                <div class="progress-step-label">SMTP</div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="progress-step-circle">4</div>
+                <div class="progress-step-label">Page d'accueil</div>
+            </div>
+            <div class="progress-step" data-step="5">
+                <div class="progress-step-circle">5</div>
+                <div class="progress-step-label">Confirmation</div>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <form id="setupForm">
+            <!-- Étape 1: Mots de passe -->
+            <div class="setup-step active" data-step="1">
+                <h2>Étape 1 : Mots de passe</h2>
+                <p>Définissez les mots de passe pour accéder à votre galerie.</p>
+
+                <div class="form-group">
+                    <label for="adminPassword">Mot de passe administrateur *</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="adminPassword" name="adminPassword" required minlength="6">
+                        <button type="button" class="password-toggle" onclick="togglePassword('adminPassword')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="password-strength" id="adminPasswordStrength"></div>
+                    <small>Ce mot de passe vous permettra d'accéder aux fonctions d'administration (minimum 6 caractères)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="adminPasswordConfirm">Confirmez le mot de passe administrateur *</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="adminPasswordConfirm" name="adminPasswordConfirm" required minlength="6">
+                        <button type="button" class="password-toggle" onclick="togglePassword('adminPasswordConfirm')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="publicPassword">Mot de passe invités *</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="publicPassword" name="publicPassword" required minlength="4">
+                        <button type="button" class="password-toggle" onclick="togglePassword('publicPassword')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="password-strength" id="publicPasswordStrength"></div>
+                    <small>Ce mot de passe sera partagé avec vos invités (minimum 4 caractères)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="publicPasswordConfirm">Confirmez le mot de passe invités *</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="publicPasswordConfirm" name="publicPasswordConfirm" required minlength="4">
+                        <button type="button" class="password-toggle" onclick="togglePassword('publicPasswordConfirm')" tabindex="-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 2: Email -->
+            <div class="setup-step" data-step="2">
+                <h2>Étape 2 : Email de notification</h2>
+                <p>Configurez l'adresse email qui recevra les notifications.</p>
+
+                <div class="form-group">
+                    <label for="adminEmail">Adresse email administrateur</label>
+                    <input type="email" id="adminEmail" name="adminEmail" placeholder="votre-email@exemple.com">
+                    <small>Cette adresse recevra les notifications (upload de photos, etc.)</small>
+                </div>
+            </div>
+
+            <!-- Étape 3: SMTP (optionnel) -->
+            <div class="setup-step" data-step="3">
+                <h2>Étape 3 : Configuration SMTP (optionnel)</h2>
+                <p>Configurez l'envoi d'emails pour recevoir des notifications automatiques.</p>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="smtpEnabled" name="smtpEnabled">
+                        <label for="smtpEnabled">Activer les notifications par email</label>
+                    </div>
+                    <small>Vous pouvez configurer ceci plus tard dans les paramètres</small>
+                </div>
+
+                <div class="smtp-toggle-section hidden" id="smtpConfig">
+                    <div class="form-group">
+                        <label for="smtpHost">Serveur SMTP</label>
+                        <input type="text" id="smtpHost" name="smtpHost" placeholder="smtp.gmail.com">
+                        <small>Exemple : smtp.gmail.com, smtp.office365.com</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpPort">Port SMTP</label>
+                        <input type="number" id="smtpPort" name="smtpPort" value="587">
+                        <small>Port standard : 587 (STARTTLS) ou 465 (SSL)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="smtpSecure" name="smtpSecure">
+                            <label for="smtpSecure">Utiliser SSL (port 465)</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpUser">Nom d'utilisateur SMTP</label>
+                        <input type="text" id="smtpUser" name="smtpUser" placeholder="votre-email@gmail.com">
+                        <small>Généralement votre adresse email complète</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpPass">Mot de passe SMTP</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="smtpPass" name="smtpPass">
+                            <button type="button" class="password-toggle" onclick="togglePassword('smtpPass')" tabindex="-1">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        <small>Pour Gmail, utilisez un "mot de passe d'application"</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 4: Page d'accueil -->
+            <div class="setup-step" data-step="4">
+                <h2>Étape 4 : Page d'accueil</h2>
+                <p>Personnalisez le message de bienvenue de votre galerie.</p>
+
+                <div class="form-group">
+                    <label for="welcomeTitle">Titre de la page d'accueil</label>
+                    <input type="text" id="welcomeTitle" name="welcomeTitle" value="Émilie & Maxime" placeholder="Émilie & Maxime">
+                </div>
+
+                <div class="form-group">
+                    <label for="welcomeMessage">Message de bienvenue</label>
+                    <textarea id="welcomeMessage" name="welcomeMessage" placeholder="Merci d'être venus célébrer notre mariage avec nous !">Merci d'être venus célébrer notre mariage avec nous !</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="welcomeImage">Chemin de l'image d'accueil</label>
+                    <input type="text" id="welcomeImage" name="welcomeImage" value="/images/welcome.jpg" placeholder="/images/welcome.jpg">
+                    <small>Placez votre image dans le dossier /public/images/</small>
+                </div>
+            </div>
+
+            <!-- Étape 5: Confirmation -->
+            <div class="setup-step" data-step="5">
+                <h2>Étape 5 : Confirmation</h2>
+                <p>Vérifiez vos paramètres avant de finaliser la configuration.</p>
+
+                <div class="summary-section">
+                    <h3>🔐 Sécurité</h3>
+                    <div class="summary-item">
+                        <span class="summary-label">Mot de passe admin :</span>
+                        <span class="summary-value">••••••••</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Mot de passe invités :</span>
+                        <span class="summary-value">••••••••</span>
+                    </div>
+                </div>
+
+                <div class="summary-section">
+                    <h3>📧 Notifications</h3>
+                    <div class="summary-item">
+                        <span class="summary-label">Email admin :</span>
+                        <span class="summary-value" id="summaryAdminEmail">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">SMTP activé :</span>
+                        <span class="summary-value" id="summarySmtpEnabled">-</span>
+                    </div>
+                </div>
+
+                <div class="summary-section">
+                    <h3>🏠 Page d'accueil</h3>
+                    <div class="summary-item">
+                        <span class="summary-label">Titre :</span>
+                        <span class="summary-value" id="summaryWelcomeTitle">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Message :</span>
+                        <span class="summary-value" id="summaryWelcomeMessage">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">Précédent</button>
+                <button type="button" class="btn btn-primary" id="nextBtn">Suivant</button>
+                <button type="submit" class="btn btn-primary" id="submitBtn" style="display: none;">Finaliser la configuration</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="/setup.js"></script>
+</body>
+</html>
