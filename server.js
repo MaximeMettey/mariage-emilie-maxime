@@ -21,6 +21,7 @@ const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
 const ADMIN_CODE = process.env.ADMIN_CODE || 'admin2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
 const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
+const WEB_OPTIMIZED_DIR = path.join(__dirname, '.web-optimized');
 const MUSIC_DIR = path.join(__dirname, 'music');
 const PENDING_UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Pending');
 const UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Uploads');
@@ -122,6 +123,7 @@ const requireAdmin = (req, res, next) => {
 app.use(express.static('public'));
 app.use('/media', requireAuth, express.static(MEDIA_DIR));
 app.use('/thumbnails', requireAuth, express.static(THUMBNAILS_DIR));
+app.use('/web-optimized', requireAuth, express.static(WEB_OPTIMIZED_DIR));
 app.use('/music', requireAuth, express.static(MUSIC_DIR));
 
 // Routes de setup (avant requireSetup middleware)
@@ -396,6 +398,61 @@ async function getVideoThumbnail(folderName, fileName) {
   }
 }
 
+// Fonction pour générer une version web optimisée d'une image
+async function getWebOptimized(filePath, folderName, fileName) {
+  try {
+    // Créer le dossier des versions web s'il n'existe pas
+    if (!fsSync.existsSync(WEB_OPTIMIZED_DIR)) {
+      await fs.mkdir(WEB_OPTIMIZED_DIR, { recursive: true });
+    }
+
+    // Générer un nom unique pour la version web basé sur le chemin
+    const fileHash = getFileHash(`${folderName}/${fileName}`);
+    const ext = path.extname(fileName).toLowerCase();
+    const baseName = path.basename(fileName, ext);
+    const webName = `${fileHash}.webp`;
+    const webPath = path.join(WEB_OPTIMIZED_DIR, webName);
+
+    // Vérifier si la version web existe déjà
+    if (fsSync.existsSync(webPath)) {
+      // Vérifier que la version web n'est pas plus vieille que l'original
+      const originalStats = await fs.stat(filePath);
+      const webStats = await fs.stat(webPath);
+
+      if (webStats.mtime >= originalStats.mtime) {
+        return `/web-optimized/${webName}`;
+      }
+    }
+
+    // Générer la version web optimisée (2048px max, WebP 85%)
+    const image = sharp(filePath);
+    const metadata = await image.metadata();
+
+    // Ne redimensionner que si l'image est plus grande que 2048px
+    if (metadata.width > 2048 || metadata.height > 2048) {
+      await image
+        .resize(2048, 2048, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .webp({ quality: 85 })
+        .toFile(webPath);
+    } else {
+      // Si l'image est déjà petite, juste convertir en WebP
+      await image
+        .webp({ quality: 85 })
+        .toFile(webPath);
+    }
+
+    console.log(`✅ Version web créée: ${fileName} → ${webName}`);
+    return `/web-optimized/${webName}`;
+  } catch (error) {
+    console.error(`Erreur lors de la génération de la version web pour ${fileName}:`, error);
+    // En cas d'erreur, retourner le chemin original
+    return null;
+  }
+}
+
 // Fonction pour scanner le dossier media avec 2 niveaux
 async function scanMediaDirectory() {
   const categories = [];
@@ -447,16 +504,25 @@ async function scanMediaDirectory() {
 
                 // Générer le thumbnail pour images et vidéos
                 let thumbnailPath = null;
+                let webOptimizedPath = null;
+
                 if (isImage) {
                   thumbnailPath = await getThumbnail(filePath, `${categoryItem.name}/${subFolder.name}`, file);
+                  // Générer version web optimisée pour les images
+                  webOptimizedPath = await getWebOptimized(filePath, `${categoryItem.name}/${subFolder.name}`, file);
                 } else if (isVideo) {
                   thumbnailPath = await getVideoThumbnail(`${categoryItem.name}/${subFolder.name}`, file);
                 }
 
+                const originalPath = `/media/${categoryItem.name}/${subFolder.name}/${file}`;
+
                 mediaFiles.push({
                   name: file,
-                  path: `/media/${categoryItem.name}/${subFolder.name}/${file}`,
-                  thumbnail: thumbnailPath || `/media/${categoryItem.name}/${subFolder.name}/${file}`,
+                  // Utiliser la version web optimisée pour l'affichage, sinon l'original
+                  path: webOptimizedPath || originalPath,
+                  // Garder le chemin original pour le téléchargement
+                  originalPath: originalPath,
+                  thumbnail: thumbnailPath || originalPath,
                   type: isImage ? 'image' : 'video',
                   size: stats.size,
                   date: date.toISOString()
@@ -1278,12 +1344,31 @@ app.post('/api/admin/gallery/upload', requireAdmin, galleryMediaUpload.array('me
 
     const { category, folder } = req.body;
 
+    // Pré-générer les versions web optimisées pour les images
+    let optimizedCount = 0;
+    for (const file of req.files) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+
+      if (isImage) {
+        try {
+          await getWebOptimized(file.path, `${category}/${folder}`, file.originalname);
+          optimizedCount++;
+        } catch (error) {
+          console.error(`Erreur optimisation de ${file.originalname}:`, error);
+        }
+      }
+    }
+
     // Invalider le cache après l'upload
     invalidateMediaCache();
+
+    console.log(`✅ ${req.files.length} fichier(s) uploadé(s), ${optimizedCount} optimisé(s)`);
 
     res.json({
       success: true,
       count: req.files.length,
+      optimizedCount,
       message: `${req.files.length} fichier(s) uploadé(s) avec succès dans ${category}/${folder}`
     });
   } catch (error) {

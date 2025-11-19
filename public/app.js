@@ -309,7 +309,8 @@ function downloadCurrentMedia() {
     if (currentMediaIndex >= 0 && currentMediaIndex < allMedia.length) {
         const media = allMedia[currentMediaIndex];
         const link = document.createElement('a');
-        link.href = media.path;
+        // Utiliser l'original pour le téléchargement, pas la version web optimisée
+        link.href = media.originalPath || media.path;
         link.download = media.name;
         link.click();
     }
@@ -375,7 +376,8 @@ async function downloadFolder(folderName) {
 // Télécharger un média individuel
 function downloadSingleMedia(media) {
     const link = document.createElement('a');
-    link.href = media.path;
+    // Utiliser l'original pour le téléchargement, pas la version web optimisée
+    link.href = media.originalPath || media.path;
     link.download = media.name;
     document.body.appendChild(link);
     link.click();
