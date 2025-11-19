@@ -18,6 +18,7 @@ const volumeOnIcon = document.getElementById('volumeOnIcon');
 const volumeOffIcon = document.getElementById('volumeOffIcon');
 const currentTrackDisplay = document.getElementById('currentTrack');
 const progressBar = document.getElementById('progressBar');
+const progressContainer = document.querySelector('.music-progress');
 
 // Charger la liste des musiques
 async function loadMusicTracks() {
@@ -65,8 +66,12 @@ function tryAutoplay() {
             hasUserInteracted = true;
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
+            // Retirer l'animation si elle existe
+            if (musicToggle) musicToggle.classList.remove('pulse-animation');
         }).catch(error => {
             console.log('Autoplay bloqué, démarrage au premier clic');
+            // Ajouter une animation pour attirer l'attention
+            if (musicToggle) musicToggle.classList.add('pulse-animation');
         });
     }
 }
@@ -88,6 +93,8 @@ function loadTrack(index) {
 // Lecture/Pause
 function togglePlay() {
     hasUserInteracted = true;
+    // Retirer l'animation d'autoplay bloqué
+    if (musicToggle) musicToggle.classList.remove('pulse-animation');
 
     if (audioPlayer.paused) {
         audioPlayer.play().then(() => {
@@ -130,6 +137,19 @@ function updateProgress() {
     }
 }
 
+// Naviguer dans la piste en cliquant sur la barre de progression
+function seekToPosition(event) {
+    const progressContainer = event.currentTarget;
+    const rect = progressContainer.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const percentage = clickX / rect.width;
+
+    if (audioPlayer.duration) {
+        audioPlayer.currentTime = percentage * audioPlayer.duration;
+        hasUserInteracted = true;
+    }
+}
+
 // Piste suivante
 function nextTrack() {
     if (musicTracks.length === 0) return;
@@ -163,6 +183,7 @@ musicToggle.addEventListener('click', togglePlay);
 volumeToggle.addEventListener('click', toggleVolume);
 if (prevTrackBtn) prevTrackBtn.addEventListener('click', prevTrack);
 if (nextTrackBtn) nextTrackBtn.addEventListener('click', nextTrack);
+if (progressContainer) progressContainer.addEventListener('click', seekToPosition);
 
 // Passer à la piste suivante automatiquement
 audioPlayer.addEventListener('ended', nextTrack);
@@ -185,6 +206,8 @@ document.addEventListener('click', function autoplayOnInteraction() {
             isPlaying = true;
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
+            // Retirer l'animation
+            if (musicToggle) musicToggle.classList.remove('pulse-animation');
         }).catch(() => {
             // Silencieux si ça ne marche pas
         });
