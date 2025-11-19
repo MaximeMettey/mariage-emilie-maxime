@@ -1,5 +1,6 @@
 // État du lecteur de musique
 let musicTracks = [];
+let musicSettings = { enabled: true, autoplay: true };
 let currentTrackIndex = 0;
 let isPlaying = false;
 let isMuted = false;
@@ -9,12 +10,15 @@ let hasUserInteracted = false;
 const audioPlayer = document.getElementById('audioPlayer');
 const musicToggle = document.getElementById('musicToggle');
 const volumeToggle = document.getElementById('volumeToggle');
+const prevTrackBtn = document.getElementById('prevTrack');
+const nextTrackBtn = document.getElementById('nextTrack');
 const playIcon = document.getElementById('playIcon');
 const pauseIcon = document.getElementById('pauseIcon');
 const volumeOnIcon = document.getElementById('volumeOnIcon');
 const volumeOffIcon = document.getElementById('volumeOffIcon');
 const currentTrackDisplay = document.getElementById('currentTrack');
 const progressBar = document.getElementById('progressBar');
+const progressContainer = document.querySelector('.music-progress');
 
 // Charger la liste des musiques
 async function loadMusicTracks() {
@@ -22,13 +26,29 @@ async function loadMusicTracks() {
         const response = await fetch('/api/music');
         const data = await response.json();
 
+        // Récupérer les paramètres de musique
+        if (data.settings) {
+            musicSettings = data.settings;
+        }
+
+        // Si le lecteur est désactivé, masquer le player
+        const musicPlayer = document.getElementById('musicPlayer');
+        if (musicPlayer && !musicSettings.enabled) {
+            musicPlayer.style.display = 'none';
+            return;
+        }
+
         if (data.tracks && data.tracks.length > 0) {
             musicTracks = data.tracks;
-            loadTrack(0);
-            currentTrackDisplay.textContent = musicTracks[0].name;
 
-            // Tenter le démarrage automatique après un court délai
-            setTimeout(tryAutoplay, 100);
+            // Choisir une piste au hasard
+            const randomIndex = Math.floor(Math.random() * musicTracks.length);
+            loadTrack(randomIndex);
+
+            // Tenter le démarrage automatique après un court délai si autoplay est activé
+            if (musicSettings.autoplay) {
+                setTimeout(tryAutoplay, 100);
+            }
         } else {
             currentTrackDisplay.textContent = 'Aucune musique';
             musicToggle.disabled = true;
@@ -42,14 +62,18 @@ async function loadMusicTracks() {
 
 // Tenter de démarrer automatiquement
 function tryAutoplay() {
-    if (!isPlaying && musicTracks.length > 0) {
+    if (!isPlaying && musicTracks.length > 0 && musicSettings.autoplay) {
         audioPlayer.play().then(() => {
             isPlaying = true;
             hasUserInteracted = true;
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
+            // Retirer l'animation si elle existe
+            if (musicToggle) musicToggle.classList.remove('pulse-animation');
         }).catch(error => {
             console.log('Autoplay bloqué, démarrage au premier clic');
+            // Ajouter une animation pour attirer l'attention
+            if (musicToggle) musicToggle.classList.add('pulse-animation');
         });
     }
 }
@@ -71,6 +95,8 @@ function loadTrack(index) {
 // Lecture/Pause
 function togglePlay() {
     hasUserInteracted = true;
+    // Retirer l'animation d'autoplay bloqué
+    if (musicToggle) musicToggle.classList.remove('pulse-animation');
 
     if (audioPlayer.paused) {
         audioPlayer.play().then(() => {
@@ -113,10 +139,38 @@ function updateProgress() {
     }
 }
 
+// Naviguer dans la piste en cliquant sur la barre de progression
+function seekToPosition(event) {
+    const progressContainer = event.currentTarget;
+    const rect = progressContainer.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const percentage = clickX / rect.width;
+
+    if (audioPlayer.duration) {
+        audioPlayer.currentTime = percentage * audioPlayer.duration;
+        hasUserInteracted = true;
+    }
+}
+
 // Piste suivante
 function nextTrack() {
+    if (musicTracks.length === 0) return;
     const nextIndex = (currentTrackIndex + 1) % musicTracks.length;
     loadTrack(nextIndex);
+    if (isPlaying || hasUserInteracted) {
+        audioPlayer.play().then(() => {
+            isPlaying = true;
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+        });
+    }
+}
+
+// Piste précédente
+function prevTrack() {
+    if (musicTracks.length === 0) return;
+    const prevIndex = (currentTrackIndex - 1 + musicTracks.length) % musicTracks.length;
+    loadTrack(prevIndex);
     if (isPlaying || hasUserInteracted) {
         audioPlayer.play().then(() => {
             isPlaying = true;
@@ -129,6 +183,9 @@ function nextTrack() {
 // Événements
 musicToggle.addEventListener('click', togglePlay);
 volumeToggle.addEventListener('click', toggleVolume);
+if (prevTrackBtn) prevTrackBtn.addEventListener('click', prevTrack);
+if (nextTrackBtn) nextTrackBtn.addEventListener('click', nextTrack);
+if (progressContainer) progressContainer.addEventListener('click', seekToPosition);
 
 // Passer à la piste suivante automatiquement
 audioPlayer.addEventListener('ended', nextTrack);
@@ -143,14 +200,16 @@ audioPlayer.addEventListener('loadedmetadata', () => {
     }
 });
 
-// Démarrer au premier clic sur la page si l'autoplay n'a pas fonctionné
+// Démarrer au premier clic sur la page si l'autoplay n'a pas fonctionné (et si autoplay est activé)
 document.addEventListener('click', function autoplayOnInteraction() {
-    if (!hasUserInteracted && musicTracks.length > 0) {
+    if (!hasUserInteracted && musicTracks.length > 0 && musicSettings.autoplay) {
         hasUserInteracted = true;
         audioPlayer.play().then(() => {
             isPlaying = true;
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
+            // Retirer l'animation
+            if (musicToggle) musicToggle.classList.remove('pulse-animation');
         }).catch(() => {
             // Silencieux si ça ne marche pas
         });
@@ -159,5 +218,6 @@ document.addEventListener('click', function autoplayOnInteraction() {
     }
 }, { once: false });
 
-// Initialisation
-loadMusicTracks();
+// NOTE: loadMusicTracks() est appelé dans login.js après authentification
+// Ne pas l'appeler ici car l'utilisateur n'est pas encore authentifié
+

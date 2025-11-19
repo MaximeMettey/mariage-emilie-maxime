@@ -264,6 +264,140 @@ async function updateWelcomeConfig() {
     }
 }
 
+async function updateMusicConfig() {
+    const musicConfig = {
+        enabled: document.getElementById('musicEnabled').checked,
+        autoplay: document.getElementById('musicAutoplay').checked
+    };
+
+    try {
+        const response = await fetch('/api/admin/settings/music', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(musicConfig)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message + ' - Rechargez la page pour voir les changements', 'success');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la mise à jour', 'error');
+    }
+}
+
+async function updateProvidersConfig() {
+    const providersConfig = {
+        enabled: document.getElementById('providersEnabled').checked
+    };
+
+    try {
+        const response = await fetch('/api/admin/settings/providers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(providersConfig)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message + ' - Rechargez la page pour voir les changements', 'success');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la mise à jour', 'error');
+    }
+}
+
+async function uploadMusicFiles() {
+    const fileInput = document.getElementById('musicFileInput');
+    const files = fileInput.files;
+
+    if (files.length === 0) {
+        showNotification('Veuillez sélectionner au moins un fichier', 'error');
+        return;
+    }
+
+    showNotification('Upload en cours...', 'info');
+
+    try {
+        // Uploader chaque fichier séquentiellement
+        for (let i = 0; i < files.length; i++) {
+            const formData = new FormData();
+            formData.append('music', files[i]);
+
+            const response = await fetch('/api/admin/music/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                showNotification(`Erreur pour ${files[i].name}: ${data.error}`, 'error');
+            }
+        }
+
+        showNotification(`${files.length} fichier(s) uploadé(s) avec succès`, 'success');
+        fileInput.value = ''; // Réinitialiser l'input
+
+        // Recharger la liste des musiques
+        if (typeof loadMusicFilesList === 'function') {
+            await loadMusicFilesList();
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'upload', 'error');
+    }
+}
+
+async function deleteMusicFile(trackName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${trackName}" ?`)) return;
+
+    try {
+        // Le nom du track vient sans extension, on doit retrouver le nom de fichier
+        // On récupère la liste complète pour trouver le fichier correspondant
+        const response = await fetch('/api/music');
+        const data = await response.json();
+
+        const track = data.tracks?.find(t => t.name === trackName);
+        if (!track) {
+            showNotification('Fichier introuvable', 'error');
+            return;
+        }
+
+        // Extraire le nom de fichier du path (ex: "/music/song.mp3" → "song.mp3")
+        const filename = track.path.split('/').pop();
+        const encodedFilename = encodeURIComponent(filename);
+
+        const deleteResponse = await fetch(`/api/admin/music/${encodedFilename}`, {
+            method: 'DELETE'
+        });
+
+        const deleteData = await deleteResponse.json();
+
+        if (deleteData.success) {
+            showNotification(deleteData.message, 'success');
+
+            // Recharger la liste des musiques
+            if (typeof loadMusicFilesList === 'function') {
+                await loadMusicFilesList();
+            }
+        } else {
+            showNotification(deleteData.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
+    }
+}
+
 /**
  * ======================
  * GESTION DES PRESTATAIRES
@@ -474,6 +608,112 @@ async function createFolder(event) {
     }
 }
 
+async function deleteCategory(categoryName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la catégorie "${categoryName}" et tout son contenu ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/gallery/category/${encodeURIComponent(categoryName)}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
+    }
+}
+
+async function renameCategory(oldName) {
+    const newName = prompt(`Renommer la catégorie "${oldName}" :`, oldName);
+
+    if (!newName || newName.trim() === '' || newName === oldName) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/gallery/category/${encodeURIComponent(oldName)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newName: newName.trim() })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors du renommage', 'error');
+    }
+}
+
+async function deleteFolder(category, folderName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le dossier "${folderName}" et tout son contenu ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/gallery/folder', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, folderName })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
+    }
+}
+
+async function renameFolder(category, oldName) {
+    const newName = prompt(`Renommer le dossier "${oldName}" :`, oldName);
+
+    if (!newName || newName.trim() === '' || newName === oldName) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/gallery/folder', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, oldName, newName: newName.trim() })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('gallery');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors du renommage', 'error');
+    }
+}
+
 function showUploadMediaModal(category, folder) {
     document.getElementById('uploadCategory').value = category;
     document.getElementById('uploadFolder').value = folder;
@@ -529,6 +769,50 @@ async function uploadMedia(event) {
     } catch (error) {
         console.error('Erreur:', error);
         showNotification('Erreur lors de l\'upload', 'error');
+    }
+}
+
+async function optimizeExistingMedia() {
+    const optimizeBtn = document.getElementById('optimizeBtn');
+
+    if (!confirm('Optimiser toutes les photos existantes ? Cela peut prendre plusieurs minutes selon le nombre de photos.')) {
+        return;
+    }
+
+    try {
+        // Désactiver le bouton et afficher la progression
+        optimizeBtn.disabled = true;
+        optimizeBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            Optimisation en cours...
+        `;
+
+        const response = await fetch('/api/admin/optimize-media', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+
+            // Recharger la galerie pour afficher les versions optimisées
+            if (window.loadMedia) {
+                await window.loadMedia();
+            }
+        } else {
+            showNotification(data.error || 'Erreur lors de l\'optimisation', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'optimisation', 'error');
+    } finally {
+        // Réactiver le bouton
+        optimizeBtn.disabled = false;
+        optimizeBtn.innerHTML = '⚡ Optimiser les photos';
     }
 }
 
@@ -607,5 +891,54 @@ function openLightbox(path, type) {
     } else {
         // Fallback: ouvrir dans un nouvel onglet
         window.open(path, '_blank');
+    }
+}
+
+/**
+ * ======================
+ * GESTION DU LIVRE D'OR
+ * ======================
+ */
+
+async function approveGuestbookEntry(entryId) {
+    try {
+        const response = await fetch(`/api/admin/guestbook/approve/${entryId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('guestbook');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'approbation', 'error');
+    }
+}
+
+async function deleteGuestbookEntry(entryId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) return;
+
+    try {
+        const response = await fetch(`/api/admin/guestbook/${entryId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            await loadAdminTab('guestbook');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de la suppression', 'error');
     }
 }

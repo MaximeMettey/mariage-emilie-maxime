@@ -13,6 +13,7 @@ const multer = require('multer');
 const nodemailer = require('nodemailer');
 const AdmZip = require('adm-zip');
 const configManager = require('./config-manager');
+const guestbookManager = require('./guestbook-manager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,7 @@ const ACCESS_CODE = process.env.ACCESS_CODE || 'mariage2025';
 const ADMIN_CODE = process.env.ADMIN_CODE || 'admin2025';
 const MEDIA_DIR = path.join(__dirname, 'media');
 const THUMBNAILS_DIR = path.join(__dirname, '.thumbnails');
+const WEB_OPTIMIZED_DIR = path.join(__dirname, '.web-optimized');
 const MUSIC_DIR = path.join(__dirname, 'music');
 const PENDING_UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Pending');
 const UPLOADS_DIR = path.join(MEDIA_DIR, 'Photos Invités', 'Uploads');
@@ -121,6 +123,7 @@ const requireAdmin = (req, res, next) => {
 app.use(express.static('public'));
 app.use('/media', requireAuth, express.static(MEDIA_DIR));
 app.use('/thumbnails', requireAuth, express.static(THUMBNAILS_DIR));
+app.use('/web-optimized', requireAuth, express.static(WEB_OPTIMIZED_DIR));
 app.use('/music', requireAuth, express.static(MUSIC_DIR));
 
 // Routes de setup (avant requireSetup middleware)
@@ -236,22 +239,66 @@ app.get('/api/user-role', requireAuth, (req, res) => {
   res.json({ role: req.session.role || 'guest' });
 });
 
-// Fonction pour extraire la date EXIF d'une image
+// Cache pour le scan des médias
+let mediaCache = {
+  data: null,
+  timestamp: 0,
+  directoryMtime: 0
+};
+
+// Durée de validité du cache en ms (5 minutes)
+const CACHE_DURATION = 5 * 60 * 1000;
+
+// Fonction pour invalider le cache
+function invalidateMediaCache() {
+  console.log('🗑️ Invalidation du cache média');
+  mediaCache = {
+    data: null,
+    timestamp: 0,
+    directoryMtime: 0
+  };
+}
+
+// Fonction pour obtenir la date de modification la plus récente d'un répertoire (récursif)
+async function getDirectoryMtime(dir) {
+  try {
+    let maxMtime = 0;
+
+    if (!fsSync.existsSync(dir)) {
+      return 0;
+    }
+
+    const stats = await fs.stat(dir);
+    maxMtime = stats.mtimeMs;
+
+    const items = await fs.readdir(dir, { withFileTypes: true });
+    for (const item of items) {
+      const itemPath = path.join(dir, item.name);
+      if (item.isDirectory()) {
+        const subMtime = await getDirectoryMtime(itemPath);
+        maxMtime = Math.max(maxMtime, subMtime);
+      } else {
+        const itemStats = await fs.stat(itemPath);
+        maxMtime = Math.max(maxMtime, itemStats.mtimeMs);
+      }
+    }
+
+    return maxMtime;
+  } catch (error) {
+    return 0;
+  }
+}
+
+// Fonction pour extraire la date d'une image (utilise mtime pour la performance)
 async function getImageDate(filePath) {
   try {
-    const buffer = await fs.readFile(filePath);
-    const parser = exifParser.create(buffer);
-    const result = parser.parse();
-
-    if (result.tags.DateTimeOriginal) {
-      return new Date(result.tags.DateTimeOriginal * 1000);
-    }
+    // Utiliser mtime directement pour la performance
+    // L'extraction EXIF est trop lente avec beaucoup de photos volumineuses
+    const stats = await fs.stat(filePath);
+    return stats.mtime;
   } catch (error) {
-    // Si on ne peut pas lire les EXIF, on utilise la date de modification
+    return new Date();
   }
-
-  const stats = await fs.stat(filePath);
-  return stats.mtime;
 }
 
 // Fonction pour obtenir la date d'une vidéo
@@ -351,6 +398,61 @@ async function getVideoThumbnail(folderName, fileName) {
   }
 }
 
+// Fonction pour générer une version web optimisée d'une image
+async function getWebOptimized(filePath, folderName, fileName) {
+  try {
+    // Créer le dossier des versions web s'il n'existe pas
+    if (!fsSync.existsSync(WEB_OPTIMIZED_DIR)) {
+      await fs.mkdir(WEB_OPTIMIZED_DIR, { recursive: true });
+    }
+
+    // Générer un nom unique pour la version web basé sur le chemin
+    const fileHash = getFileHash(`${folderName}/${fileName}`);
+    const ext = path.extname(fileName).toLowerCase();
+    const baseName = path.basename(fileName, ext);
+    const webName = `${fileHash}.webp`;
+    const webPath = path.join(WEB_OPTIMIZED_DIR, webName);
+
+    // Vérifier si la version web existe déjà
+    if (fsSync.existsSync(webPath)) {
+      // Vérifier que la version web n'est pas plus vieille que l'original
+      const originalStats = await fs.stat(filePath);
+      const webStats = await fs.stat(webPath);
+
+      if (webStats.mtime >= originalStats.mtime) {
+        return `/web-optimized/${webName}`;
+      }
+    }
+
+    // Générer la version web optimisée (2048px max, WebP 85%)
+    const image = sharp(filePath);
+    const metadata = await image.metadata();
+
+    // Ne redimensionner que si l'image est plus grande que 2048px
+    if (metadata.width > 2048 || metadata.height > 2048) {
+      await image
+        .resize(2048, 2048, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .webp({ quality: 85 })
+        .toFile(webPath);
+    } else {
+      // Si l'image est déjà petite, juste convertir en WebP
+      await image
+        .webp({ quality: 85 })
+        .toFile(webPath);
+    }
+
+    console.log(`✅ Version web créée: ${fileName} → ${webName}`);
+    return `/web-optimized/${webName}`;
+  } catch (error) {
+    console.error(`Erreur lors de la génération de la version web pour ${fileName}:`, error);
+    // En cas d'erreur, retourner le chemin original
+    return null;
+  }
+}
+
 // Fonction pour scanner le dossier media avec 2 niveaux
 async function scanMediaDirectory() {
   const categories = [];
@@ -402,16 +504,25 @@ async function scanMediaDirectory() {
 
                 // Générer le thumbnail pour images et vidéos
                 let thumbnailPath = null;
+                let webOptimizedPath = null;
+
                 if (isImage) {
                   thumbnailPath = await getThumbnail(filePath, `${categoryItem.name}/${subFolder.name}`, file);
+                  // Générer version web optimisée pour les images
+                  webOptimizedPath = await getWebOptimized(filePath, `${categoryItem.name}/${subFolder.name}`, file);
                 } else if (isVideo) {
                   thumbnailPath = await getVideoThumbnail(`${categoryItem.name}/${subFolder.name}`, file);
                 }
 
+                const originalPath = `/media/${categoryItem.name}/${subFolder.name}/${file}`;
+
                 mediaFiles.push({
                   name: file,
-                  path: `/media/${categoryItem.name}/${subFolder.name}/${file}`,
-                  thumbnail: thumbnailPath || `/media/${categoryItem.name}/${subFolder.name}/${file}`,
+                  // Utiliser la version web optimisée pour l'affichage, sinon l'original
+                  path: webOptimizedPath || originalPath,
+                  // Garder le chemin original pour le téléchargement
+                  originalPath: originalPath,
+                  thumbnail: thumbnailPath || originalPath,
                   type: isImage ? 'image' : 'video',
                   size: stats.size,
                   date: date.toISOString()
@@ -454,10 +565,32 @@ async function scanMediaDirectory() {
   return categories;
 }
 
-// Route pour obtenir la liste des médias
+// Route pour obtenir la liste des médias (avec cache)
 app.get('/api/media', requireAuth, async (req, res) => {
   try {
+    const now = Date.now();
+    const currentMtime = await getDirectoryMtime(MEDIA_DIR);
+
+    // Vérifier si le cache est valide
+    const cacheValid = mediaCache.data &&
+                       (now - mediaCache.timestamp < CACHE_DURATION) &&
+                       (currentMtime === mediaCache.directoryMtime);
+
+    if (cacheValid) {
+      console.log('✅ Cache hit - retour immédiat');
+      return res.json({ categories: mediaCache.data, cached: true });
+    }
+
+    // Scan et mise à jour du cache
+    console.log('🔄 Cache miss - scan du répertoire média...');
     const categories = await scanMediaDirectory();
+
+    mediaCache = {
+      data: categories,
+      timestamp: now,
+      directoryMtime: currentMtime
+    };
+
     res.json({ categories });
   } catch (error) {
     console.error('Erreur:', error);
@@ -465,13 +598,19 @@ app.get('/api/media', requireAuth, async (req, res) => {
   }
 });
 
-// Route pour obtenir la liste des musiques
+// Route pour obtenir la liste des musiques et la configuration
 app.get('/api/music', requireAuth, async (req, res) => {
   try {
+    // Récupérer la configuration musicale
+    const musicSettings = configManager.getMusicSettings();
+
     // Créer le dossier music s'il n'existe pas
     if (!fsSync.existsSync(MUSIC_DIR)) {
       await fs.mkdir(MUSIC_DIR, { recursive: true });
-      return res.json({ tracks: [] });
+      return res.json({
+        tracks: [],
+        settings: musicSettings
+      });
     }
 
     const files = await fs.readdir(MUSIC_DIR);
@@ -485,7 +624,10 @@ app.get('/api/music', requireAuth, async (req, res) => {
       path: `/music/${file}`
     }));
 
-    res.json({ tracks });
+    res.json({
+      tracks,
+      settings: musicSettings
+    });
   } catch (error) {
     console.error('Erreur lors de la récupération des musiques:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des musiques' });
@@ -632,6 +774,70 @@ app.post('/api/admin/settings/smtp', requireAdmin, (req, res) => {
   }
 });
 
+app.get('/api/admin/settings/music', requireAdmin, (req, res) => {
+  try {
+    const musicSettings = configManager.getMusicSettings();
+    res.json(musicSettings);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des paramètres musicaux:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/music', requireAdmin, (req, res) => {
+  try {
+    const musicSettings = req.body;
+
+    const success = configManager.updateMusicSettings(musicSettings);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Configuration musicale mise à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de la configuration musicale'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la configuration musicale:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.get('/api/admin/settings/providers', requireAdmin, (req, res) => {
+  try {
+    const providersSettings = configManager.getProvidersSettings();
+    res.json(providersSettings);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des paramètres prestataires:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/settings/providers', requireAdmin, (req, res) => {
+  try {
+    const providersSettings = req.body;
+
+    const success = configManager.updateProvidersSettings(providersSettings);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Configuration de la page prestataires mise à jour avec succès'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erreur lors de la mise à jour de la configuration'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la configuration prestataires:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 app.post('/api/admin/settings/welcome', requireAdmin, (req, res) => {
   try {
     const welcomeConfig = req.body;
@@ -657,10 +863,17 @@ app.post('/api/admin/settings/welcome', requireAdmin, (req, res) => {
 // Route pour obtenir la liste des prestataires
 app.get('/api/providers', requireAuth, (req, res) => {
   try {
+    // Vérifier si la page prestataires est activée
+    const providersSettings = configManager.getProvidersSettings();
+
+    if (!providersSettings.enabled) {
+      return res.json({ providers: [], enabled: false });
+    }
+
     const providersPath = path.join(__dirname, 'providers.json');
     const providersData = fsSync.readFileSync(providersPath, 'utf8');
     const providers = JSON.parse(providersData);
-    res.json(providers);
+    res.json({ ...providers, enabled: true });
   } catch (error) {
     console.error('Erreur lors de la lecture des prestataires:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des prestataires' });
@@ -761,6 +974,84 @@ app.delete('/api/admin/providers/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ============================================
+// ROUTES DU LIVRE D'OR
+// ============================================
+
+// Soumettre un message (public, authentifié)
+app.post('/api/guestbook', requireAuth, (req, res) => {
+  try {
+    const { name, message } = req.body;
+    const ip = req.ip || req.connection.remoteAddress;
+
+    const result = guestbookManager.addEntry(name, message, ip);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du message:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du message' });
+  }
+});
+
+// Récupérer les messages approuvés (public, authentifié)
+app.get('/api/guestbook', requireAuth, (req, res) => {
+  try {
+    const entries = guestbookManager.getApprovedEntries();
+    res.json({ entries });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des messages:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
+// Récupérer tous les messages pour modération (admin uniquement)
+app.get('/api/admin/guestbook', requireAdmin, (req, res) => {
+  try {
+    const entries = guestbookManager.getAllEntries();
+    const stats = guestbookManager.getStats();
+    res.json({ entries, stats });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des messages:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
+// Approuver un message
+app.post('/api/admin/guestbook/approve/:id', requireAdmin, (req, res) => {
+  try {
+    const result = guestbookManager.approveEntry(req.params.id);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'approbation du message:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'approbation du message' });
+  }
+});
+
+// Supprimer un message
+app.delete('/api/admin/guestbook/:id', requireAdmin, (req, res) => {
+  try {
+    const result = guestbookManager.rejectEntry(req.params.id);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression du message:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du message' });
+  }
+});
+
 // Upload de logo pour un prestataire
 const providerLogoStorage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -815,6 +1106,85 @@ app.post('/api/admin/providers/upload-logo', requireAdmin, providerLogoUpload.si
   } catch (error) {
     console.error('Erreur lors de l\'upload du logo:', error);
     res.status(500).json({ error: 'Erreur lors de l\'upload du logo' });
+  }
+});
+
+// Upload de musique
+const musicStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const musicDir = path.join(__dirname, 'music');
+    try {
+      if (!fsSync.existsSync(musicDir)) {
+        await fs.mkdir(musicDir, { recursive: true });
+      }
+      cb(null, musicDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    // Conserver le nom original pour faciliter la reconnaissance
+    const sanitized = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, sanitized);
+  }
+});
+
+const musicUpload = multer({
+  storage: musicStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /mp3|wav|ogg|m4a|flac/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = /audio/.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Seuls les fichiers audio sont autorisés (mp3, wav, ogg, m4a, flac)'));
+    }
+  }
+});
+
+app.post('/api/admin/music/upload', requireAdmin, musicUpload.single('music'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier reçu' });
+    }
+
+    res.json({
+      success: true,
+      filename: req.file.filename,
+      message: 'Musique uploadée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'upload de la musique:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la musique' });
+  }
+});
+
+// Supprimer une musique
+app.delete('/api/admin/music/:filename', requireAdmin, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(MUSIC_DIR, filename);
+
+    // Vérifier que le fichier existe
+    if (!fsSync.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier introuvable' });
+    }
+
+    // Supprimer le fichier
+    await fs.unlink(filePath);
+
+    res.json({
+      success: true,
+      message: 'Musique supprimée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la musique:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la musique' });
   }
 });
 
@@ -974,14 +1344,121 @@ app.post('/api/admin/gallery/upload', requireAdmin, galleryMediaUpload.array('me
 
     const { category, folder } = req.body;
 
+    // Pré-générer les versions web optimisées pour les images
+    let optimizedCount = 0;
+    for (const file of req.files) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+
+      if (isImage) {
+        try {
+          await getWebOptimized(file.path, `${category}/${folder}`, file.originalname);
+          optimizedCount++;
+        } catch (error) {
+          console.error(`Erreur optimisation de ${file.originalname}:`, error);
+        }
+      }
+    }
+
+    // Invalider le cache après l'upload
+    invalidateMediaCache();
+
+    console.log(`✅ ${req.files.length} fichier(s) uploadé(s), ${optimizedCount} optimisé(s)`);
+
     res.json({
       success: true,
       count: req.files.length,
+      optimizedCount,
       message: `${req.files.length} fichier(s) uploadé(s) avec succès dans ${category}/${folder}`
     });
   } catch (error) {
     console.error('Erreur lors de l\'upload des médias:', error);
     res.status(500).json({ error: 'Erreur lors de l\'upload des médias' });
+  }
+});
+
+// Optimiser tous les médias existants
+app.post('/api/admin/optimize-media', requireAdmin, async (req, res) => {
+  try {
+    let totalImages = 0;
+    let optimizedCount = 0;
+    let alreadyOptimized = 0;
+    let errors = 0;
+
+    // Scanner récursivement tous les dossiers media
+    async function optimizeDirectory(dir, relativePath = '') {
+      const items = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        const relPath = relativePath ? `${relativePath}/${item.name}` : item.name;
+
+        if (item.isDirectory()) {
+          // Ignorer le dossier Pending
+          if (item.name !== 'Pending') {
+            await optimizeDirectory(fullPath, relPath);
+          }
+        } else if (item.isFile()) {
+          const ext = path.extname(item.name).toLowerCase();
+          const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+
+          if (isImage) {
+            totalImages++;
+
+            try {
+              // Vérifier si la version web existe déjà
+              const fileHash = getFileHash(relPath);
+              const webName = `${fileHash}.webp`;
+              const webPath = path.join(WEB_OPTIMIZED_DIR, webName);
+
+              if (fsSync.existsSync(webPath)) {
+                // Vérifier que la version web n'est pas plus vieille
+                const originalStats = await fs.stat(fullPath);
+                const webStats = await fs.stat(webPath);
+
+                if (webStats.mtime >= originalStats.mtime) {
+                  alreadyOptimized++;
+                  continue;
+                }
+              }
+
+              // Générer la version web
+              await getWebOptimized(fullPath, path.dirname(relPath), item.name);
+              optimizedCount++;
+
+              // Pré-générer aussi le thumbnail pendant qu'on y est
+              await getThumbnail(fullPath, path.dirname(relPath), item.name);
+            } catch (error) {
+              console.error(`Erreur optimisation ${relPath}:`, error);
+              errors++;
+            }
+          }
+        }
+      }
+    }
+
+    console.log('🔄 Début de l\'optimisation des médias existants...');
+    await optimizeDirectory(MEDIA_DIR);
+
+    // Invalider le cache pour forcer le rechargement avec les nouvelles versions
+    invalidateMediaCache();
+
+    const message = `Optimisation terminée : ${optimizedCount} images optimisées, ${alreadyOptimized} déjà optimisées, ${errors} erreurs sur ${totalImages} images totales`;
+    console.log(`✅ ${message}`);
+
+    res.json({
+      success: true,
+      message,
+      stats: {
+        total: totalImages,
+        optimized: optimizedCount,
+        alreadyOptimized,
+        errors
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'optimisation des médias:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'optimisation des médias' });
   }
 });
 
@@ -1009,6 +1486,9 @@ app.delete('/api/admin/gallery/file', requireAdmin, async (req, res) => {
 
     await fs.unlink(fullPath);
 
+    // Invalider le cache après suppression
+    invalidateMediaCache();
+
     res.json({
       success: true,
       message: 'Fichier supprimé avec succès'
@@ -1016,6 +1496,161 @@ app.delete('/api/admin/gallery/file', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la suppression du fichier:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du fichier' });
+  }
+});
+
+// Supprimer une catégorie (et tout son contenu)
+app.delete('/api/admin/gallery/category/:categoryName', requireAdmin, async (req, res) => {
+  try {
+    const { categoryName } = req.params;
+
+    if (!categoryName || categoryName.trim() === '') {
+      return res.status(400).json({ error: 'Nom de catégorie requis' });
+    }
+
+    const categoryPath = path.join(MEDIA_DIR, categoryName);
+
+    // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+    if (!categoryPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(categoryPath)) {
+      return res.status(404).json({ error: 'Catégorie non trouvée' });
+    }
+
+    // Supprimer récursivement le dossier et tout son contenu
+    await fs.rm(categoryPath, { recursive: true, force: true });
+
+    // Invalider le cache après suppression
+    invalidateMediaCache();
+
+    res.json({
+      success: true,
+      message: 'Catégorie supprimée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la catégorie' });
+  }
+});
+
+// Renommer une catégorie
+app.put('/api/admin/gallery/category/:oldName', requireAdmin, async (req, res) => {
+  try {
+    const { oldName } = req.params;
+    const { newName } = req.body;
+
+    if (!oldName || !newName || newName.trim() === '') {
+      return res.status(400).json({ error: 'Ancien et nouveau nom requis' });
+    }
+
+    const oldPath = path.join(MEDIA_DIR, oldName);
+    const newPath = path.join(MEDIA_DIR, newName);
+
+    // Vérifier que les chemins sont bien dans MEDIA_DIR (sécurité)
+    if (!oldPath.startsWith(MEDIA_DIR) || !newPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(oldPath)) {
+      return res.status(404).json({ error: 'Catégorie non trouvée' });
+    }
+
+    if (fsSync.existsSync(newPath)) {
+      return res.status(400).json({ error: 'Une catégorie avec ce nom existe déjà' });
+    }
+
+    // Renommer le dossier
+    await fs.rename(oldPath, newPath);
+
+    // Invalider le cache après renommage
+    invalidateMediaCache();
+
+    res.json({
+      success: true,
+      message: 'Catégorie renommée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors du renommage de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur lors du renommage de la catégorie' });
+  }
+});
+
+// Supprimer un dossier (et tout son contenu)
+app.delete('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
+  try {
+    const { category, folderName } = req.body;
+
+    if (!category || !folderName || folderName.trim() === '') {
+      return res.status(400).json({ error: 'Catégorie et nom de dossier requis' });
+    }
+
+    const folderPath = path.join(MEDIA_DIR, category, folderName);
+
+    // Vérifier que le chemin est bien dans MEDIA_DIR (sécurité)
+    if (!folderPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+
+    // Supprimer récursivement le dossier et tout son contenu
+    await fs.rm(folderPath, { recursive: true, force: true });
+
+    // Invalider le cache après suppression
+    invalidateMediaCache();
+
+    res.json({
+      success: true,
+      message: 'Dossier supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression du dossier:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du dossier' });
+  }
+});
+
+// Renommer un dossier
+app.put('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
+  try {
+    const { category, oldName, newName } = req.body;
+
+    if (!category || !oldName || !newName || newName.trim() === '') {
+      return res.status(400).json({ error: 'Catégorie, ancien et nouveau nom requis' });
+    }
+
+    const oldPath = path.join(MEDIA_DIR, category, oldName);
+    const newPath = path.join(MEDIA_DIR, category, newName);
+
+    // Vérifier que les chemins sont bien dans MEDIA_DIR (sécurité)
+    if (!oldPath.startsWith(MEDIA_DIR) || !newPath.startsWith(MEDIA_DIR)) {
+      return res.status(400).json({ error: 'Chemin invalide' });
+    }
+
+    if (!fsSync.existsSync(oldPath)) {
+      return res.status(404).json({ error: 'Dossier non trouvé' });
+    }
+
+    if (fsSync.existsSync(newPath)) {
+      return res.status(400).json({ error: 'Un dossier avec ce nom existe déjà' });
+    }
+
+    // Renommer le dossier
+    await fs.rename(oldPath, newPath);
+
+    // Invalider le cache après renommage
+    invalidateMediaCache();
+
+    res.json({
+      success: true,
+      message: 'Dossier renommé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors du renommage du dossier:', error);
+    res.status(500).json({ error: 'Erreur lors du renommage du dossier' });
   }
 });
 
@@ -1242,6 +1877,42 @@ app.post('/api/upload-photos', requireAuth, upload.array('photos', 20), async (r
 // Routes d'administration pour la validation des uploads
 
 // Lister les uploads en attente
+// Fonction récursive pour lire les fichiers dans les sous-dossiers
+async function readPendingFilesRecursive(dir, baseDir = dir, filesList = []) {
+  const items = await fs.readdir(dir, { withFileTypes: true });
+
+  for (const item of items) {
+    const fullPath = path.join(dir, item.name);
+
+    if (item.isDirectory()) {
+      // Lire récursivement les sous-dossiers
+      await readPendingFilesRecursive(fullPath, baseDir, filesList);
+    } else if (item.isFile()) {
+      const ext = path.extname(item.name).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+      const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
+
+      if (isImage || isVideo) {
+        const stats = await fs.stat(fullPath);
+        const relativePath = path.relative(baseDir, fullPath);
+        const webPath = `/media/Photos Invités/Pending/${relativePath}`.replace(/\\/g, '/');
+
+        filesList.push({
+          name: relativePath.replace(/\\/g, '/'), // Utiliser le chemin relatif complet
+          displayName: path.basename(item.name), // Juste le nom du fichier pour l'affichage
+          folderPath: path.dirname(relativePath).replace(/\\/g, '/'), // Chemin du dossier
+          path: webPath,
+          type: isImage ? 'image' : 'video',
+          size: stats.size,
+          uploadedAt: stats.mtime.toISOString()
+        });
+      }
+    }
+  }
+
+  return filesList;
+}
+
 app.get('/api/admin/pending-uploads', requireAdmin, async (req, res) => {
   try {
     // Créer le dossier s'il n'existe pas
@@ -1250,26 +1921,7 @@ app.get('/api/admin/pending-uploads', requireAdmin, async (req, res) => {
       return res.json({ files: [] });
     }
 
-    const files = await fs.readdir(PENDING_UPLOADS_DIR);
-    const pendingFiles = [];
-
-    for (const file of files) {
-      const filePath = path.join(PENDING_UPLOADS_DIR, file);
-      const stats = await fs.stat(filePath);
-      const ext = path.extname(file).toLowerCase();
-      const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
-      const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
-
-      if (isImage || isVideo) {
-        pendingFiles.push({
-          name: file,
-          path: `/media/Photos Invités/Pending/${file}`,
-          type: isImage ? 'image' : 'video',
-          size: stats.size,
-          uploadedAt: stats.mtime.toISOString()
-        });
-      }
-    }
+    const pendingFiles = await readPendingFilesRecursive(PENDING_UPLOADS_DIR);
 
     // Trier par date d'upload (plus récent en premier)
     pendingFiles.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
@@ -1305,6 +1957,9 @@ app.post('/api/admin/approve-upload', requireAdmin, async (req, res) => {
 
     // Déplacer le fichier
     await fs.rename(sourcePath, destPath);
+
+    // Invalider le cache après validation
+    invalidateMediaCache();
 
     console.log(`✅ Fichier validé et déplacé: ${filename}`);
     res.json({ success: true, message: 'Fichier validé avec succès' });
@@ -1374,6 +2029,11 @@ app.post('/api/admin/batch-approve', requireAdmin, async (req, res) => {
         results.failed.push({ filename, error: error.message });
         console.error(`❌ Erreur lors de la validation de ${filename}:`, error);
       }
+    }
+
+    // Invalider le cache si au moins un fichier a été validé
+    if (results.success.length > 0) {
+      invalidateMediaCache();
     }
 
     const message = `${results.success.length} fichier(s) validé(s), ${results.failed.length} échec(s)`;

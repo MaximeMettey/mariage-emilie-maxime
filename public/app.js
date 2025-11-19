@@ -309,7 +309,8 @@ function downloadCurrentMedia() {
     if (currentMediaIndex >= 0 && currentMediaIndex < allMedia.length) {
         const media = allMedia[currentMediaIndex];
         const link = document.createElement('a');
-        link.href = media.path;
+        // Utiliser l'original pour le téléchargement, pas la version web optimisée
+        link.href = media.originalPath || media.path;
         link.download = media.name;
         link.click();
     }
@@ -375,7 +376,8 @@ async function downloadFolder(folderName) {
 // Télécharger un média individuel
 function downloadSingleMedia(media) {
     const link = document.createElement('a');
-    link.href = media.path;
+    // Utiliser l'original pour le téléchargement, pas la version web optimisée
+    link.href = media.originalPath || media.path;
     link.download = media.name;
     document.body.appendChild(link);
     link.click();
@@ -544,10 +546,35 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Initialiser la navigation selon la configuration
+async function initializeNavigation() {
+    try {
+        // Récupérer la configuration
+        const response = await fetch('/api/admin/settings');
+        const config = await response.json();
+
+        // Masquer le lien prestataires si désactivé
+        const providersNavLink = document.getElementById('providersNavLink');
+        if (providersNavLink && config.providers && !config.providers.enabled) {
+            providersNavLink.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'initialisation de la navigation:', error);
+    }
+}
+
+// Appeler l'initialisation de la navigation au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeNavigation);
+} else {
+    initializeNavigation();
+}
+
 // Enregistrer les routes
 if (typeof router !== 'undefined') {
     router.register('welcome', renderWelcomeView);
     router.register('gallery', renderGalleryView);
     router.register('providers', renderProvidersView);
+    router.register('guestbook', renderGuestbookView);
     router.register('admin', renderAdminDashboard);
 }

@@ -76,9 +76,9 @@ class ConfigManager {
         pass: smtp?.pass || ''
       },
       welcome: {
-        title: welcome?.title || 'Émilie & Maxime',
-        message: welcome?.message || 'Merci d\'être venus célébrer notre mariage avec nous !',
-        image: welcome?.image || '/images/welcome.jpg'
+        title: welcome?.title || '',
+        message: welcome?.message || '',
+        image: welcome?.image || ''
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -171,9 +171,9 @@ class ConfigManager {
     if (!this.config) return false;
 
     this.config.welcome = {
-      title: welcome.title || 'Émilie & Maxime',
+      title: welcome.title || '',
       message: welcome.message || '',
-      image: welcome.image || '/images/welcome.jpg'
+      image: welcome.image || ''
     };
     this.config.updatedAt = new Date().toISOString();
 
@@ -192,9 +192,9 @@ class ConfigManager {
    */
   getWelcomeConfig() {
     return this.config?.welcome || {
-      title: 'Émilie & Maxime',
-      message: 'Merci d\'être venus célébrer notre mariage avec nous !',
-      image: '/images/welcome.jpg'
+      title: '',
+      message: '',
+      image: ''
     };
   }
 
@@ -203,6 +203,54 @@ class ConfigManager {
    */
   getAdminEmail() {
     return this.config?.adminEmail || '';
+  }
+
+  /**
+   * Récupère la configuration des musiques
+   */
+  getMusicSettings() {
+    return this.config?.music || {
+      enabled: true,
+      autoplay: true
+    };
+  }
+
+  /**
+   * Met à jour la configuration des musiques
+   */
+  updateMusicSettings(musicSettings) {
+    if (!this.config) return false;
+
+    this.config.music = {
+      enabled: musicSettings.enabled !== undefined ? musicSettings.enabled : true,
+      autoplay: musicSettings.autoplay !== undefined ? musicSettings.autoplay : true
+    };
+    this.config.updatedAt = new Date().toISOString();
+
+    return this.saveConfig(this.config);
+  }
+
+  /**
+   * Récupère la configuration de la page prestataires
+   */
+  getProvidersSettings() {
+    return this.config?.providers || {
+      enabled: true
+    };
+  }
+
+  /**
+   * Met à jour la configuration de la page prestataires
+   */
+  updateProvidersSettings(providersSettings) {
+    if (!this.config) return false;
+
+    this.config.providers = {
+      enabled: providersSettings.enabled !== undefined ? providersSettings.enabled : true
+    };
+    this.config.updatedAt = new Date().toISOString();
+
+    return this.saveConfig(this.config);
   }
 
   /**
@@ -222,6 +270,8 @@ class ConfigManager {
         // On ne renvoie pas le mot de passe SMTP
       },
       welcome: this.config.welcome,
+      music: this.getMusicSettings(),
+      providers: this.getProvidersSettings(),
       updatedAt: this.config.updatedAt
     };
   }

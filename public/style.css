@@ -39,6 +39,7 @@ body {
     min-height: 100vh;
     line-height: 1.6;
     font-size: 18px;
+    padding-bottom: 100px;
 }
 
 /* Page de connexion */
@@ -1275,28 +1276,32 @@ body {
 
 .music-player {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(26, 26, 26, 0.95);
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 50px;
-    padding: 12px 20px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: rgba(26, 26, 26, 0.98);
+    border-top: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 0;
+    padding: 16px 24px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    box-shadow: var(--shadow-lg), var(--shadow-burgundy);
+    justify-content: center;
+    gap: 16px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5), 0 -2px 10px rgba(139, 21, 56, 0.3);
     backdrop-filter: blur(10px);
     z-index: 900;
     transition: var(--transition);
 }
 
 .music-player:hover {
-    border-color: var(--color-gold);
-    box-shadow: var(--shadow-lg), var(--shadow-gold);
+    border-top-color: var(--color-gold);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6), 0 -2px 10px rgba(212, 175, 55, 0.4);
 }
 
 .music-toggle,
-.volume-toggle {
+.volume-toggle,
+.music-control {
     background: rgba(139, 21, 56, 0.3);
     border: 1px solid var(--color-burgundy);
     border-radius: 50%;
@@ -1311,14 +1316,21 @@ body {
 }
 
 .music-toggle:hover,
-.volume-toggle:hover {
+.volume-toggle:hover,
+.music-control:hover {
     background: rgba(139, 21, 56, 0.5);
     border-color: var(--color-burgundy-light);
 }
 
+.music-control {
+    width: 36px;
+    height: 36px;
+}
+
 .music-info {
-    min-width: 150px;
-    max-width: 250px;
+    min-width: 200px;
+    max-width: 400px;
+    flex: 1;
 }
 
 .music-info span {
@@ -1333,10 +1345,16 @@ body {
 
 .music-progress {
     width: 100%;
-    height: 3px;
+    height: 4px;
     background: rgba(139, 21, 56, 0.3);
     border-radius: 2px;
     overflow: hidden;
+    cursor: pointer;
+    transition: height 0.2s ease;
+}
+
+.music-progress:hover {
+    height: 6px;
 }
 
 .progress-bar {
@@ -1345,6 +1363,22 @@ body {
     background: linear-gradient(90deg, var(--color-burgundy-light), var(--color-gold));
     transition: width 0.1s linear;
     border-radius: 2px;
+}
+
+/* Animation pour attirer l'attention quand l'autoplay est bloqué */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(212, 175, 55, 0);
+    }
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
 }
 
 /* ============================================

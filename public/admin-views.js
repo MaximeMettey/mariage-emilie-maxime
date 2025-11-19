@@ -1,7 +1,7 @@
 // Vues d'administration avancées
 
 // État global pour les onglets admin
-let currentAdminTab = 'uploads'; // uploads, settings, providers, gallery
+let currentAdminTab = 'uploads'; // uploads, settings, providers, gallery, guestbook
 
 /**
  * Rendu de l'interface admin complète avec onglets
@@ -28,6 +28,9 @@ async function renderAdminDashboard() {
                 </button>
                 <button class="admin-tab ${currentAdminTab === 'gallery' ? 'active' : ''}" data-tab="gallery">
                     🖼️ Gestion galerie
+                </button>
+                <button class="admin-tab ${currentAdminTab === 'guestbook' ? 'active' : ''}" data-tab="guestbook">
+                    📖 Livre d'or
                 </button>
             </div>
 
@@ -90,6 +93,9 @@ async function loadAdminTab(tabName) {
         case 'gallery':
             await renderGalleryTab(tabContent);
             break;
+        case 'guestbook':
+            await renderGuestbookTab(tabContent);
+            break;
     }
 }
 
@@ -128,12 +134,14 @@ async function renderUploadsTab(container) {
         for (const file of data.files) {
             const uploadDate = new Date(file.uploadedAt).toLocaleString('fr-FR');
             const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            const folderDisplay = file.folderPath && file.folderPath !== '.' ? `📁 ${file.folderPath}/` : '';
+            const escapedName = file.name.replace(/'/g, "\\'");
 
             html += `
                 <div class="pending-upload-card" data-filename="${file.name}">
                     <div class="upload-preview">
                         ${file.type === 'image' ?
-                            `<img src="${file.path}" alt="${file.name}" onclick="openLightbox('${file.path}', 'image')">` :
+                            `<img src="${file.path}" alt="${file.displayName}" onclick="openLightbox('${file.path}', 'image')">` :
                             `<div class="video-preview" onclick="openLightbox('${file.path}', 'video')">
                                 <span class="play-icon">▶️</span>
                                 <p>Vidéo</p>
@@ -141,12 +149,13 @@ async function renderUploadsTab(container) {
                         }
                     </div>
                     <div class="upload-info">
-                        <p class="file-name">${file.name}</p>
+                        ${folderDisplay ? `<p class="file-folder">${folderDisplay}</p>` : ''}
+                        <p class="file-name" title="${file.name}">${file.displayName}</p>
                         <p class="file-meta">📅 ${uploadDate} | 💾 ${fileSize} MB</p>
                     </div>
                     <div class="upload-actions">
-                        <button class="btn btn-success btn-sm" onclick="approveUpload('${file.name}')">✓ Valider</button>
-                        <button class="btn btn-danger btn-sm" onclick="rejectUpload('${file.name}')">✗ Rejeter</button>
+                        <button class="btn btn-success btn-sm" onclick="approveUpload('${escapedName}')">✓</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectUpload('${escapedName}')">✗</button>
                     </div>
                 </div>
             `;
@@ -272,6 +281,59 @@ async function renderSettingsTab(container) {
 
                     <button class="btn btn-primary" onclick="updateWelcomeConfig()">Mettre à jour</button>
                 </div>
+
+                <!-- Musique -->
+                <div class="settings-card">
+                    <h3>🎵 Lecteur de musique</h3>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="musicEnabled" ${config.music?.enabled !== false ? 'checked' : ''}>
+                            Activer le lecteur de musique
+                        </label>
+                        <small>Affiche le lecteur de musique sur toutes les pages</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="musicAutoplay" ${config.music?.autoplay !== false ? 'checked' : ''}>
+                            Lecture automatique
+                        </label>
+                        <small>Démarre automatiquement la musique au chargement de la page</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="updateMusicConfig()">Mettre à jour</button>
+
+                    <hr style="margin: 30px 0; border-color: #e0e0e0;">
+
+                    <h4>Gestion des fichiers musicaux</h4>
+                    <div class="form-group">
+                        <label>Uploader des musiques</label>
+                        <input type="file" id="musicFileInput" accept="audio/*" multiple>
+                        <small>Formats acceptés : MP3, WAV, OGG, M4A, FLAC (max 50MB par fichier)</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="uploadMusicFiles()">Uploader</button>
+
+                    <div id="musicFilesList" style="margin-top: 20px;">
+                        <div class="loading">Chargement de la liste des musiques...</div>
+                    </div>
+                </div>
+
+                <!-- Page Prestataires -->
+                <div class="settings-card">
+                    <h3>🤝 Page prestataires</h3>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="providersEnabled" ${config.providers?.enabled !== false ? 'checked' : ''}>
+                            Activer la page prestataires
+                        </label>
+                        <small>Affiche la page prestataires dans le menu de navigation</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="updateProvidersConfig()">Mettre à jour</button>
+                </div>
             </div>
         `;
 
@@ -284,9 +346,46 @@ async function renderSettingsTab(container) {
                 fields.classList.add('hidden');
             }
         });
+
+        // Charger la liste des musiques
+        await loadMusicFilesList();
     } catch (error) {
         console.error('Erreur lors du chargement des paramètres:', error);
         container.innerHTML = '<div class="error">Erreur lors du chargement des paramètres</div>';
+    }
+}
+
+/**
+ * Charger la liste des fichiers musicaux
+ */
+async function loadMusicFilesList() {
+    const musicFilesList = document.getElementById('musicFilesList');
+    if (!musicFilesList) return;
+
+    try {
+        const response = await fetch('/api/music');
+        const data = await response.json();
+
+        if (data.tracks && data.tracks.length > 0) {
+            let html = '<h4 style="margin-bottom: 10px;">Musiques disponibles</h4><div class="music-files-grid">';
+
+            data.tracks.forEach(track => {
+                html += `
+                    <div class="music-file-item">
+                        <span class="music-file-name">🎵 ${track.name}</span>
+                        <button class="btn btn-danger btn-sm" onclick="deleteMusicFile('${track.name}')">🗑️</button>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            musicFilesList.innerHTML = html;
+        } else {
+            musicFilesList.innerHTML = '<p style="color: #666;">Aucune musique uploadée</p>';
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        musicFilesList.innerHTML = '<p style="color: #f44336;">Erreur lors du chargement</p>';
     }
 }
 
@@ -417,7 +516,10 @@ async function renderGalleryTab(container) {
             <div class="gallery-management-section">
                 <div class="section-header">
                     <h2>🖼️ Gestion de la galerie</h2>
-                    <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Nouvelle catégorie</button>
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="optimizeExistingMedia()" id="optimizeBtn">⚡ Optimiser les photos</button>
+                        <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Nouvelle catégorie</button>
+                    </div>
                 </div>
 
                 <div class="gallery-structure">
@@ -428,7 +530,11 @@ async function renderGalleryTab(container) {
                 <div class="category-section">
                     <div class="category-header">
                         <h3>📁 ${category.category}</h3>
-                        <button class="btn btn-secondary btn-sm" onclick="showAddFolderModal('${category.category}')">+ Nouveau dossier</button>
+                        <div class="category-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="showAddFolderModal('${category.category}')">+ Nouveau dossier</button>
+                            <button class="btn btn-secondary btn-sm" onclick="renameCategory('${category.category}')">✏️ Renommer</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteCategory('${category.category}')">🗑️ Supprimer</button>
+                        </div>
                     </div>
                     <div class="folders-list">
             `;
@@ -437,7 +543,11 @@ async function renderGalleryTab(container) {
                 html += `
                     <div class="folder-item">
                         <span>📂 ${folder}</span>
-                        <button class="btn btn-primary btn-sm" onclick="showUploadMediaModal('${category.category}', '${folder}')">⬆️ Upload</button>
+                        <div class="folder-actions">
+                            <button class="btn btn-primary btn-sm" onclick="showUploadMediaModal('${category.category}', '${folder}')">⬆️ Upload</button>
+                            <button class="btn btn-secondary btn-sm" onclick="renameFolder('${category.category}', '${folder}')">✏️ Renommer</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFolder('${category.category}', '${folder}')">🗑️ Supprimer</button>
+                        </div>
                     </div>
                 `;
             }
@@ -518,6 +628,84 @@ async function renderGalleryTab(container) {
     } catch (error) {
         console.error('Erreur lors du chargement de la structure:', error);
         container.innerHTML = '<div class="error">Erreur lors du chargement de la structure</div>';
+    }
+}
+
+/**
+ * Onglet Livre d'or (modération)
+ */
+async function renderGuestbookTab(container) {
+    container.innerHTML = '<div class="loading">Chargement des messages...</div>';
+
+    try {
+        const response = await fetch('/api/admin/guestbook');
+        const data = await response.json();
+
+        let html = `
+            <div class="guestbook-admin-section">
+                <div class="section-header">
+                    <h2>📖 Modération du livre d'or</h2>
+                    <div class="guestbook-stats">
+                        <span class="stat-badge stat-pending">En attente: ${data.stats.pending}</span>
+                        <span class="stat-badge stat-approved">Approuvés: ${data.stats.approved}</span>
+                        <span class="stat-badge stat-total">Total: ${data.stats.total}</span>
+                    </div>
+                </div>
+
+                <div class="guestbook-entries-list">
+        `;
+
+        if (data.entries.length === 0) {
+            html += '<div class="empty-state">Aucun message pour le moment</div>';
+        } else {
+            data.entries.forEach(entry => {
+                const date = new Date(entry.createdAt).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const statusClass = entry.status === 'pending' ? 'status-pending' :
+                                  entry.status === 'approved' ? 'status-approved' :
+                                  'status-rejected';
+
+                const statusText = entry.status === 'pending' ? 'En attente' :
+                                 entry.status === 'approved' ? 'Approuvé' :
+                                 'Rejeté';
+
+                html += `
+                    <div class="guestbook-admin-entry ${statusClass}">
+                        <div class="entry-header-admin">
+                            <div class="entry-info">
+                                <strong class="entry-author">${entry.name}</strong>
+                                <span class="entry-date-admin">${date}</span>
+                                <span class="entry-ip">IP: ${entry.ip}</span>
+                            </div>
+                            <span class="entry-status">${statusText}</span>
+                        </div>
+                        <p class="entry-message-admin">${entry.message}</p>
+                        <div class="entry-actions-admin">
+                            ${entry.status === 'pending' ?
+                                `<button class="btn btn-success btn-sm" onclick="approveGuestbookEntry('${entry.id}')">✓ Approuver</button>` :
+                                ''}
+                            <button class="btn btn-danger btn-sm" onclick="deleteGuestbookEntry('${entry.id}')">🗑️ Supprimer</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Erreur lors du chargement des messages:', error);
+        container.innerHTML = '<div class="error">Erreur lors du chargement des messages</div>';
     }
 }
 
@@ -636,6 +824,12 @@ function addAdminStyles() {
             margin-bottom: 20px;
         }
 
+        .admin-dashboard .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .admin-dashboard .batch-actions {
             display: flex;
             gap: 10px;
@@ -686,26 +880,51 @@ function addAdminStyles() {
 
         .admin-dashboard .upload-info {
             padding: 10px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
-        .admin-dashboard .file-name {
+        .admin-dashboard .file-folder {
+            font-size: 11px;
+            color: #c9a66b;
+            margin: 0 0 2px 0;
             font-weight: 500;
-            margin: 0 0 5px 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
+        .admin-dashboard .file-name {
+            font-weight: 600;
+            margin: 0 0 5px 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #333;
+            font-size: 14px;
+        }
+
         .admin-dashboard .file-meta {
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
             margin: 0;
         }
 
         .admin-dashboard .upload-actions {
-            padding: 10px;
+            padding: 8px 10px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            justify-content: center;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .admin-dashboard .upload-actions .btn-sm {
+            flex: 1;
+            max-width: 80px;
+            padding: 6px 10px;
+            font-size: 18px;
         }
 
         .admin-dashboard .providers-grid {
@@ -779,6 +998,17 @@ function addAdminStyles() {
             padding: 10px;
             background: #f9f9f9;
             border-radius: 5px;
+        }
+
+        .admin-dashboard .category-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .admin-dashboard .folder-actions {
+            display: flex;
+            gap: 5px;
         }
 
         .modal {
@@ -891,6 +1121,166 @@ function addAdminStyles() {
 
         .hidden {
             display: none !important;
+        }
+
+        /* Styles pour le livre d'or admin */
+        .guestbook-admin-section {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .guestbook-stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .stat-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .stat-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .stat-total {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .guestbook-entries-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .guestbook-admin-entry {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #c9a66b;
+        }
+
+        .guestbook-admin-entry.status-pending {
+            border-left-color: #ffc107;
+        }
+
+        .guestbook-admin-entry.status-approved {
+            border-left-color: #4CAF50;
+        }
+
+        .entry-header-admin {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .entry-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .entry-author {
+            color: #8b1538;
+            font-size: 1.1rem;
+        }
+
+        .entry-date-admin {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .entry-ip {
+            color: #999;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+
+        .entry-status {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-pending .entry-status {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved .entry-status {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .entry-message-admin {
+            color: #333;
+            line-height: 1.6;
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+
+        .entry-actions-admin {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .guestbook-stats {
+                flex-direction: column;
+            }
+
+            .entry-header-admin {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        /* Styles pour la gestion des musiques */
+        .music-files-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .music-file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border-left: 3px solid #c9a66b;
+        }
+
+        .music-file-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
         }
     `;
 
