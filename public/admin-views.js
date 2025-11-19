@@ -381,7 +381,7 @@ async function loadMusicFilesList() {
             html += '</div>';
             musicFilesList.innerHTML = html;
         } else {
-            musicFilesList.innerHTML = '<p style="color: #666;">Aucune musique uploadée</p>';
+            musicFilesList.innerHTML = '<p style="color: #9e9e9e;">Aucune musique uploadée</p>';
         }
     } catch (error) {
         console.error('Erreur:', error);
@@ -736,7 +736,7 @@ function addAdminStyles() {
         .admin-tabs {
             display: flex;
             gap: 10px;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid rgba(212, 175, 55, 0.3);
             margin-bottom: 30px;
             flex-wrap: wrap;
         }
@@ -748,17 +748,17 @@ function addAdminStyles() {
             border-bottom: 3px solid transparent;
             cursor: pointer;
             font-size: 16px;
-            color: #666;
+            color: #9e9e9e;
             transition: all 0.3s ease;
         }
 
         .admin-tab:hover {
-            color: #c9a66b;
+            color: #d4af37;
         }
 
         .admin-tab.active {
-            color: #c9a66b;
-            border-bottom-color: #c9a66b;
+            color: #d4af37;
+            border-bottom-color: #d4af37;
         }
 
         .admin-dashboard .settings-section,
@@ -771,7 +771,8 @@ function addAdminStyles() {
 
         .admin-dashboard .settings-card,
         .admin-dashboard .provider-card {
-            background: white;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -779,7 +780,7 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .settings-card h3 {
-            color: #c9a66b;
+            color: #d4af37;
             margin-top: 0;
         }
 
@@ -791,7 +792,7 @@ function addAdminStyles() {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #333;
+            color: #ffffff;
         }
 
         .admin-dashboard .form-group input[type="text"],
@@ -813,7 +814,7 @@ function addAdminStyles() {
         .admin-dashboard .form-group small {
             display: block;
             margin-top: 5px;
-            color: #666;
+            color: #9e9e9e;
             font-size: 12px;
         }
 
@@ -842,7 +843,8 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .pending-upload-card {
-            background: white;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -902,13 +904,13 @@ function addAdminStyles() {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: #333;
+            color: #ffffff;
             font-size: 14px;
         }
 
         .admin-dashboard .file-meta {
             font-size: 11px;
-            color: #666;
+            color: #9e9e9e;
             margin: 0;
         }
 
@@ -955,7 +957,7 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .provider-description {
-            color: #666;
+            color: #9e9e9e;
             font-size: 14px;
         }
 
@@ -966,38 +968,62 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .category-section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            margin-bottom: 32px;
         }
 
         .admin-dashboard .category-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
         }
 
         .admin-dashboard .category-header h3 {
-            color: #c9a66b;
+            font-family: 'Cinzel', serif;
+            font-size: 1.4rem;
+            color: #d4af37;
+            font-weight: 600;
             margin: 0;
         }
 
         .admin-dashboard .folders-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .admin-dashboard .folder-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
-            background: #f9f9f9;
-            border-radius: 5px;
+            padding: 16px 20px;
+            background: rgba(10, 10, 10, 0.7);
+            border: 1px solid rgba(139, 21, 56, 0.3);
+            border-radius: 8px;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .admin-dashboard .folder-item:hover {
+            background: rgba(139, 21, 56, 0.2);
+            border-color: rgba(212, 175, 55, 0.4);
+            box-shadow: 0 0 15px rgba(139, 21, 56, 0.3);
+            transform: translateX(4px);
+        }
+
+        .admin-dashboard .folder-item > span {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            color: #ffffff;
+            font-weight: 500;
+            flex: 1;
         }
 
         .admin-dashboard .category-actions {
@@ -1029,7 +1055,8 @@ function addAdminStyles() {
         }
 
         .modal-content {
-            background: white;
+            background: rgba(26, 26, 26, 0.98);
+            border: 1px solid rgba(212, 175, 55, 0.3);
             padding: 30px;
             border-radius: 10px;
             max-width: 500px;
@@ -1047,7 +1074,7 @@ function addAdminStyles() {
         }
 
         .close:hover {
-            color: #333;
+            color: #ffffff;
         }
 
         .admin-dashboard .form-actions {
@@ -1067,21 +1094,23 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .btn-primary {
-            background: #c9a66b;
-            color: white;
+            background: #d4af37;
+            color: #0a0a0a;
+            font-weight: 600;
         }
 
         .admin-dashboard .btn-primary:hover {
-            background: #b8956a;
+            background: #f0d06b;
         }
 
         .admin-dashboard .btn-secondary {
-            background: #e0e0e0;
-            color: #333;
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border: 1px solid #d4af37;
         }
 
         .admin-dashboard .btn-secondary:hover {
-            background: #d0d0d0;
+            background: rgba(212, 175, 55, 0.3);
         }
 
         .admin-dashboard .btn-success {
@@ -1094,12 +1123,13 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .btn-danger {
-            background: #f44336;
-            color: white;
+            background: #8b1538;
+            color: #d4af37;
+            border: 1px solid #8b1538;
         }
 
         .admin-dashboard .btn-danger:hover {
-            background: #da190b;
+            background: #a8234a;
         }
 
         .admin-dashboard .btn-sm {
@@ -1112,7 +1142,7 @@ function addAdminStyles() {
         .admin-dashboard .empty-state {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: #9e9e9e;
         }
 
         .admin-dashboard .error {
@@ -1143,18 +1173,18 @@ function addAdminStyles() {
         }
 
         .stat-pending {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(212, 175, 55, 0.3);
+            color: #f0d06b;
         }
 
         .stat-approved {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(76, 175, 80, 0.3);
+            color: #90ee90;
         }
 
         .stat-total {
-            background: #d1ecf1;
-            color: #0c5460;
+            background: rgba(139, 21, 56, 0.3);
+            color: #d4af37;
         }
 
         .guestbook-entries-list {
@@ -1165,15 +1195,16 @@ function addAdminStyles() {
         }
 
         .guestbook-admin-entry {
-            background: white;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #c9a66b;
+            border-left: 4px solid #d4af37;
         }
 
         .guestbook-admin-entry.status-pending {
-            border-left-color: #ffc107;
+            border-left-color: #d4af37;
         }
 
         .guestbook-admin-entry.status-approved {
@@ -1201,7 +1232,7 @@ function addAdminStyles() {
         }
 
         .entry-date-admin {
-            color: #666;
+            color: #9e9e9e;
             font-size: 0.9rem;
         }
 
@@ -1219,17 +1250,17 @@ function addAdminStyles() {
         }
 
         .status-pending .entry-status {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(212, 175, 55, 0.3);
+            color: #f0d06b;
         }
 
         .status-approved .entry-status {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(76, 175, 80, 0.3);
+            color: #90ee90;
         }
 
         .entry-message-admin {
-            color: #333;
+            color: #ffffff;
             line-height: 1.6;
             margin: 15px 0;
             white-space: pre-wrap;
@@ -1264,13 +1295,13 @@ function addAdminStyles() {
             justify-content: space-between;
             align-items: center;
             padding: 12px;
-            background: #f9f9f9;
+            background: rgba(10, 10, 10, 0.7);
             border-radius: 5px;
-            border-left: 3px solid #c9a66b;
+            border-left: 3px solid #d4af37;
         }
 
         .music-file-name {
-            color: #333;
+            color: #ffffff;
             font-weight: 500;
         }
 
