@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "clean-cache": "node clean-cache.js"
+    "clean-cache": "node clean-cache.js",
+    "fix-permissions": "bash fix-permissions.sh"
   },
   "keywords": [
     "gallery",

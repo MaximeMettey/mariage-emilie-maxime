@@ -55,7 +55,43 @@ PORT=3000
 SESSION_SECRET=une-chaine-aleatoire-tres-longue-et-securisee
 ```
 
-### 4. Organiser vos médias
+### 4. Fixer les permissions (si nécessaire)
+
+Si vous clonez le projet en tant qu'utilisateur différent de celui qui exécute le serveur Node.js (par exemple : clone avec `mediabox`, serveur sous `www-data`), vous devez configurer les permissions pour permettre l'écriture dans les fichiers de données.
+
+**Symptôme** : Erreurs de permissions lors de l'ajout de prestataires ou du livre d'or.
+
+**Solution automatique** :
+
+```bash
+sudo npm run fix-permissions
+```
+
+Ce script va :
+- Ajouter l'utilisateur web (`www-data`) au groupe de votre utilisateur
+- Configurer les permissions sur les fichiers de données (664)
+- Configurer les permissions sur les dossiers d'uploads (775)
+
+**Solution manuelle** :
+
+```bash
+# Ajouter www-data au groupe de votre utilisateur (ex: mediabox)
+sudo usermod -a -G $(whoami) www-data
+
+# Fixer les permissions sur les fichiers de données
+sudo chgrp $(whoami) providers.json guestbook.json app-config.json
+sudo chmod 664 providers.json guestbook.json app-config.json
+
+# Fixer les permissions sur les dossiers
+sudo chgrp -R $(whoami) media music public/images .thumbnails .web-optimized
+find media music public/images -type d -exec sudo chmod 775 {} \;
+find media music public/images -type f -exec sudo chmod 664 {} \;
+
+# Redémarrer le serveur web pour appliquer les changements de groupe
+sudo systemctl restart apache2  # ou nginx, ou votre serveur
+```
+
+### 5. Organiser vos médias
 
 Créer des sous-dossiers dans le répertoire `media/` :
 
