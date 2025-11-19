@@ -1425,6 +1425,9 @@ app.post('/api/admin/optimize-media', requireAdmin, async (req, res) => {
               // Générer la version web
               await getWebOptimized(fullPath, path.dirname(relPath), item.name);
               optimizedCount++;
+
+              // Pré-générer aussi le thumbnail pendant qu'on y est
+              await getThumbnail(fullPath, path.dirname(relPath), item.name);
             } catch (error) {
               console.error(`Erreur optimisation ${relPath}:`, error);
               errors++;
