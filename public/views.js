@@ -115,7 +115,7 @@ async function renderProvidersView() {
 
             providersHTML += `
                 <div class="provider-card-large">
-                    <div class="provider-logo">
+                    <div class="provider-logo-square-public">
                         <img src="${provider.logo}" alt="${provider.company}" onerror="this.style.display='none'">
                     </div>
                     <div class="provider-info">

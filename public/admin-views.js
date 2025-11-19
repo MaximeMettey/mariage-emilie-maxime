@@ -412,11 +412,26 @@ async function renderProvidersTab(container) {
                 <div class="providers-grid">
         `;
 
-        for (const provider of data.providers) {
+        data.providers.forEach((provider, index) => {
             html += `
                 <div class="provider-card">
-                    <div class="provider-logo">
-                        <img src="${provider.logo}" alt="${provider.company}">
+                    <div class="provider-order-controls">
+                        <button class="btn-order btn-order-up"
+                                onclick="moveProvider('${provider.id}', 'up')"
+                                ${index === 0 ? 'disabled' : ''}
+                                title="Monter">
+                            ▲
+                        </button>
+                        <span class="provider-order-number">#${index + 1}</span>
+                        <button class="btn-order btn-order-down"
+                                onclick="moveProvider('${provider.id}', 'down')"
+                                ${index === data.providers.length - 1 ? 'disabled' : ''}
+                                title="Descendre">
+                            ▼
+                        </button>
+                    </div>
+                    <div class="provider-logo-square">
+                        <img src="${provider.logo}" alt="${provider.company}" onerror="this.style.display='none'">
                     </div>
                     <div class="provider-info">
                         <h3>${provider.name}</h3>
@@ -429,7 +444,7 @@ async function renderProvidersTab(container) {
                     </div>
                 </div>
             `;
-        }
+        });
 
         html += `
                 </div>
@@ -935,20 +950,70 @@ function addAdminStyles() {
             gap: 20px;
         }
 
-        .admin-dashboard .provider-logo {
-            height: 120px;
+        .admin-dashboard .provider-card {
+            position: relative;
+            padding-top: 45px;
+        }
+
+        .admin-dashboard .provider-order-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 20px;
+            padding: 4px 10px;
+        }
+
+        .admin-dashboard .provider-order-number {
+            font-size: 13px;
+            font-weight: 600;
+            color: #d4af37;
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .admin-dashboard .btn-order {
+            background: transparent;
+            border: 1px solid #d4af37;
+            color: #d4af37;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .admin-dashboard .btn-order:hover:not(:disabled) {
+            background: rgba(212, 175, 55, 0.2);
+            transform: scale(1.1);
+        }
+
+        .admin-dashboard .btn-order:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .admin-dashboard .provider-logo-square {
+            width: 150px;
+            height: 150px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #f5f5f5;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            background: rgba(10, 10, 10, 0.5);
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            margin: 0 auto 15px;
+            overflow: hidden;
         }
 
-        .admin-dashboard .provider-logo img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+        .admin-dashboard .provider-logo-square img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .admin-dashboard .provider-company {
