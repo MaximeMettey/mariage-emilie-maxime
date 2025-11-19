@@ -1,0 +1,24 @@
+{
+  "providers": [
+    {
+      "id": "exemple-photographe-1234567890",
+      "name": "Photographe",
+      "company": "Studio Photo Exemple",
+      "description": "Photographe professionnel spécialisé dans les mariages",
+      "logo": "/images/providers/logo-photographe.jpg",
+      "reviewLink": "https://maps.google.com/?cid=1234567890",
+      "websiteLink": "https://www.exemple-photographe.fr",
+      "order": 0
+    },
+    {
+      "id": "exemple-traiteur-1234567891",
+      "name": "Traiteur",
+      "company": "Saveurs & Délices",
+      "description": "Traiteur gastronomique pour événements",
+      "logo": "/images/providers/logo-traiteur.jpg",
+      "reviewLink": "https://maps.google.com/?cid=1234567891",
+      "websiteLink": "https://www.instagram.com/exemple_traiteur",
+      "order": 1
+    }
+  ]
+}

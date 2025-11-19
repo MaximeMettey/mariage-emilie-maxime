@@ -3,6 +3,7 @@ node_modules/
 media/*
 !media/.gitkeep
 .thumbnails/
+.web-optimized/
 music/*
 !music/.gitkeep
 public/images/*
@@ -10,3 +11,5 @@ public/images/*
 *.log
 .DS_Store
 app-config.json
+providers.json
+guestbook.json

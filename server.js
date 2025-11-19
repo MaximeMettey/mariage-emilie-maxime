@@ -63,6 +63,42 @@ function initializeEmailTransporter() {
 // Initialiser l'email transporter
 initializeEmailTransporter();
 
+// Fonction pour initialiser les fichiers de données s'ils n'existent pas
+function initializeDataFiles() {
+  // Initialiser providers.json
+  const providersPath = path.join(__dirname, 'providers.json');
+  const providersExamplePath = path.join(__dirname, 'providers.json.example');
+
+  if (!fsSync.existsSync(providersPath)) {
+    if (fsSync.existsSync(providersExamplePath)) {
+      // Copier le fichier exemple
+      fsSync.copyFileSync(providersExamplePath, providersPath);
+      console.log('📄 Fichier providers.json créé depuis providers.json.example');
+    } else {
+      // Créer un fichier vide
+      fsSync.writeFileSync(providersPath, JSON.stringify({ providers: [] }, null, 2));
+      console.log('📄 Fichier providers.json créé (vide)');
+    }
+  }
+
+  // Initialiser guestbook.json (géré par guestbook-manager mais on s'assure qu'il existe)
+  const guestbookPath = path.join(__dirname, 'guestbook.json');
+  const guestbookExamplePath = path.join(__dirname, 'guestbook.json.example');
+
+  if (!fsSync.existsSync(guestbookPath)) {
+    if (fsSync.existsSync(guestbookExamplePath)) {
+      fsSync.copyFileSync(guestbookExamplePath, guestbookPath);
+      console.log('📄 Fichier guestbook.json créé depuis guestbook.json.example');
+    } else {
+      fsSync.writeFileSync(guestbookPath, JSON.stringify({ entries: [] }, null, 2));
+      console.log('📄 Fichier guestbook.json créé (vide)');
+    }
+  }
+}
+
+// Initialiser les fichiers de données
+initializeDataFiles();
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
