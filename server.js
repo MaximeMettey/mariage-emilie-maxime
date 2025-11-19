@@ -1377,6 +1377,88 @@ app.post('/api/admin/gallery/upload', requireAdmin, galleryMediaUpload.array('me
   }
 });
 
+// Optimiser tous les médias existants
+app.post('/api/admin/optimize-media', requireAdmin, async (req, res) => {
+  try {
+    let totalImages = 0;
+    let optimizedCount = 0;
+    let alreadyOptimized = 0;
+    let errors = 0;
+
+    // Scanner récursivement tous les dossiers media
+    async function optimizeDirectory(dir, relativePath = '') {
+      const items = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        const relPath = relativePath ? `${relativePath}/${item.name}` : item.name;
+
+        if (item.isDirectory()) {
+          // Ignorer le dossier Pending
+          if (item.name !== 'Pending') {
+            await optimizeDirectory(fullPath, relPath);
+          }
+        } else if (item.isFile()) {
+          const ext = path.extname(item.name).toLowerCase();
+          const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+
+          if (isImage) {
+            totalImages++;
+
+            try {
+              // Vérifier si la version web existe déjà
+              const fileHash = getFileHash(relPath);
+              const webName = `${fileHash}.webp`;
+              const webPath = path.join(WEB_OPTIMIZED_DIR, webName);
+
+              if (fsSync.existsSync(webPath)) {
+                // Vérifier que la version web n'est pas plus vieille
+                const originalStats = await fs.stat(fullPath);
+                const webStats = await fs.stat(webPath);
+
+                if (webStats.mtime >= originalStats.mtime) {
+                  alreadyOptimized++;
+                  continue;
+                }
+              }
+
+              // Générer la version web
+              await getWebOptimized(fullPath, path.dirname(relPath), item.name);
+              optimizedCount++;
+            } catch (error) {
+              console.error(`Erreur optimisation ${relPath}:`, error);
+              errors++;
+            }
+          }
+        }
+      }
+    }
+
+    console.log('🔄 Début de l\'optimisation des médias existants...');
+    await optimizeDirectory(MEDIA_DIR);
+
+    // Invalider le cache pour forcer le rechargement avec les nouvelles versions
+    invalidateMediaCache();
+
+    const message = `Optimisation terminée : ${optimizedCount} images optimisées, ${alreadyOptimized} déjà optimisées, ${errors} erreurs sur ${totalImages} images totales`;
+    console.log(`✅ ${message}`);
+
+    res.json({
+      success: true,
+      message,
+      stats: {
+        total: totalImages,
+        optimized: optimizedCount,
+        alreadyOptimized,
+        errors
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'optimisation des médias:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'optimisation des médias' });
+  }
+});
+
 // Supprimer un fichier média
 app.delete('/api/admin/gallery/file', requireAdmin, async (req, res) => {
   try {

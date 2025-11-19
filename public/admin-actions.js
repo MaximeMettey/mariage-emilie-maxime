@@ -772,6 +772,50 @@ async function uploadMedia(event) {
     }
 }
 
+async function optimizeExistingMedia() {
+    const optimizeBtn = document.getElementById('optimizeBtn');
+
+    if (!confirm('Optimiser toutes les photos existantes ? Cela peut prendre plusieurs minutes selon le nombre de photos.')) {
+        return;
+    }
+
+    try {
+        // Désactiver le bouton et afficher la progression
+        optimizeBtn.disabled = true;
+        optimizeBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            Optimisation en cours...
+        `;
+
+        const response = await fetch('/api/admin/optimize-media', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+
+            // Recharger la galerie pour afficher les versions optimisées
+            if (window.loadMedia) {
+                await window.loadMedia();
+            }
+        } else {
+            showNotification(data.error || 'Erreur lors de l\'optimisation', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'optimisation', 'error');
+    } finally {
+        // Réactiver le bouton
+        optimizeBtn.disabled = false;
+        optimizeBtn.innerHTML = '⚡ Optimiser les photos';
+    }
+}
+
 /**
  * ======================
  * FONCTIONS UTILITAIRES

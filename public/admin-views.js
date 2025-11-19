@@ -516,7 +516,10 @@ async function renderGalleryTab(container) {
             <div class="gallery-management-section">
                 <div class="section-header">
                     <h2>🖼️ Gestion de la galerie</h2>
-                    <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Nouvelle catégorie</button>
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="optimizeExistingMedia()" id="optimizeBtn">⚡ Optimiser les photos</button>
+                        <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Nouvelle catégorie</button>
+                    </div>
                 </div>
 
                 <div class="gallery-structure">
@@ -819,6 +822,12 @@ function addAdminStyles() {
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+        }
+
+        .admin-dashboard .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
 
         .admin-dashboard .batch-actions {
@@ -1263,6 +1272,15 @@ function addAdminStyles() {
         .music-file-name {
             color: #333;
             font-weight: 500;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
         }
     `;
 
