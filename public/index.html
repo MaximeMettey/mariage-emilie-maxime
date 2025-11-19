@@ -48,6 +48,11 @@
     <div id="appView" style="display: none;">
         <!-- Lecteur de musique -->
         <div id="musicPlayer" class="music-player">
+            <button id="prevTrack" class="music-control" title="Piste précédente">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                </svg>
+            </button>
             <button id="musicToggle" class="music-toggle" title="Lecture/Pause">
                 <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -55,6 +60,11 @@
                 <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
                     <rect x="6" y="4" width="4" height="16"></rect>
                     <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            </button>
+            <button id="nextTrack" class="music-control" title="Piste suivante">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 18h2V6h-2zm-11-6l8.5-6v12z"/>
                 </svg>
             </button>
             <div class="music-info">

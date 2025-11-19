@@ -1296,7 +1296,8 @@ body {
 }
 
 .music-toggle,
-.volume-toggle {
+.volume-toggle,
+.music-control {
     background: rgba(139, 21, 56, 0.3);
     border: 1px solid var(--color-burgundy);
     border-radius: 50%;
@@ -1311,9 +1312,15 @@ body {
 }
 
 .music-toggle:hover,
-.volume-toggle:hover {
+.volume-toggle:hover,
+.music-control:hover {
     background: rgba(139, 21, 56, 0.5);
     border-color: var(--color-burgundy-light);
+}
+
+.music-control {
+    width: 36px;
+    height: 36px;
 }
 
 .music-info {

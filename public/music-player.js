@@ -10,6 +10,8 @@ let hasUserInteracted = false;
 const audioPlayer = document.getElementById('audioPlayer');
 const musicToggle = document.getElementById('musicToggle');
 const volumeToggle = document.getElementById('volumeToggle');
+const prevTrackBtn = document.getElementById('prevTrack');
+const nextTrackBtn = document.getElementById('nextTrack');
 const playIcon = document.getElementById('playIcon');
 const pauseIcon = document.getElementById('pauseIcon');
 const volumeOnIcon = document.getElementById('volumeOnIcon');
@@ -130,8 +132,23 @@ function updateProgress() {
 
 // Piste suivante
 function nextTrack() {
+    if (musicTracks.length === 0) return;
     const nextIndex = (currentTrackIndex + 1) % musicTracks.length;
     loadTrack(nextIndex);
+    if (isPlaying || hasUserInteracted) {
+        audioPlayer.play().then(() => {
+            isPlaying = true;
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+        });
+    }
+}
+
+// Piste précédente
+function prevTrack() {
+    if (musicTracks.length === 0) return;
+    const prevIndex = (currentTrackIndex - 1 + musicTracks.length) % musicTracks.length;
+    loadTrack(prevIndex);
     if (isPlaying || hasUserInteracted) {
         audioPlayer.play().then(() => {
             isPlaying = true;
@@ -144,6 +161,8 @@ function nextTrack() {
 // Événements
 musicToggle.addEventListener('click', togglePlay);
 volumeToggle.addEventListener('click', toggleVolume);
+if (prevTrackBtn) prevTrackBtn.addEventListener('click', prevTrack);
+if (nextTrackBtn) nextTrackBtn.addEventListener('click', nextTrack);
 
 // Passer à la piste suivante automatiquement
 audioPlayer.addEventListener('ended', nextTrack);
@@ -174,5 +193,6 @@ document.addEventListener('click', function autoplayOnInteraction() {
     }
 }, { once: false });
 
-// Initialisation
-loadMusicTracks();
+// NOTE: loadMusicTracks() est appelé dans login.js après authentification
+// Ne pas l'appeler ici car l'utilisateur n'est pas encore authentifié
+
