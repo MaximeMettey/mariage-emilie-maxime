@@ -1561,10 +1561,10 @@ body {
     object-fit: cover;
 }
 
-/* Logo carré pour les prestataires */
+/* Logo paysage 16/9 pour les prestataires */
 .provider-logo-square-public {
-    width: 180px;
-    height: 180px;
+    width: 100%;
+    aspect-ratio: 16 / 9;
     border-radius: 12px;
     overflow: hidden;
     background: rgba(10, 10, 10, 0.5);
@@ -1572,7 +1572,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto;
+    margin: 0;
     box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
     transition: var(--transition);
 }
@@ -1580,7 +1580,7 @@ body {
 .provider-card-large:hover .provider-logo-square-public {
     border-color: rgba(212, 175, 55, 0.6);
     box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
-    transform: scale(1.05);
+    transform: translateY(-2px);
 }
 
 .provider-logo-square-public img {

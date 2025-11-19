@@ -998,15 +998,15 @@ function addAdminStyles() {
         }
 
         .admin-dashboard .provider-logo-square {
-            width: 150px;
-            height: 150px;
+            width: 100%;
+            aspect-ratio: 16 / 9;
             display: flex;
             align-items: center;
             justify-content: center;
             background: rgba(10, 10, 10, 0.5);
             border: 2px solid rgba(212, 175, 55, 0.3);
             border-radius: 12px;
-            margin: 0 auto 15px;
+            margin: 0 0 15px 0;
             overflow: hidden;
         }
 
