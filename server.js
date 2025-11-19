@@ -237,22 +237,66 @@ app.get('/api/user-role', requireAuth, (req, res) => {
   res.json({ role: req.session.role || 'guest' });
 });
 
-// Fonction pour extraire la date EXIF d'une image
+// Cache pour le scan des médias
+let mediaCache = {
+  data: null,
+  timestamp: 0,
+  directoryMtime: 0
+};
+
+// Durée de validité du cache en ms (5 minutes)
+const CACHE_DURATION = 5 * 60 * 1000;
+
+// Fonction pour invalider le cache
+function invalidateMediaCache() {
+  console.log('🗑️ Invalidation du cache média');
+  mediaCache = {
+    data: null,
+    timestamp: 0,
+    directoryMtime: 0
+  };
+}
+
+// Fonction pour obtenir la date de modification la plus récente d'un répertoire (récursif)
+async function getDirectoryMtime(dir) {
+  try {
+    let maxMtime = 0;
+
+    if (!fsSync.existsSync(dir)) {
+      return 0;
+    }
+
+    const stats = await fs.stat(dir);
+    maxMtime = stats.mtimeMs;
+
+    const items = await fs.readdir(dir, { withFileTypes: true });
+    for (const item of items) {
+      const itemPath = path.join(dir, item.name);
+      if (item.isDirectory()) {
+        const subMtime = await getDirectoryMtime(itemPath);
+        maxMtime = Math.max(maxMtime, subMtime);
+      } else {
+        const itemStats = await fs.stat(itemPath);
+        maxMtime = Math.max(maxMtime, itemStats.mtimeMs);
+      }
+    }
+
+    return maxMtime;
+  } catch (error) {
+    return 0;
+  }
+}
+
+// Fonction pour extraire la date d'une image (utilise mtime pour la performance)
 async function getImageDate(filePath) {
   try {
-    const buffer = await fs.readFile(filePath);
-    const parser = exifParser.create(buffer);
-    const result = parser.parse();
-
-    if (result.tags.DateTimeOriginal) {
-      return new Date(result.tags.DateTimeOriginal * 1000);
-    }
+    // Utiliser mtime directement pour la performance
+    // L'extraction EXIF est trop lente avec beaucoup de photos volumineuses
+    const stats = await fs.stat(filePath);
+    return stats.mtime;
   } catch (error) {
-    // Si on ne peut pas lire les EXIF, on utilise la date de modification
+    return new Date();
   }
-
-  const stats = await fs.stat(filePath);
-  return stats.mtime;
 }
 
 // Fonction pour obtenir la date d'une vidéo
@@ -455,10 +499,32 @@ async function scanMediaDirectory() {
   return categories;
 }
 
-// Route pour obtenir la liste des médias
+// Route pour obtenir la liste des médias (avec cache)
 app.get('/api/media', requireAuth, async (req, res) => {
   try {
+    const now = Date.now();
+    const currentMtime = await getDirectoryMtime(MEDIA_DIR);
+
+    // Vérifier si le cache est valide
+    const cacheValid = mediaCache.data &&
+                       (now - mediaCache.timestamp < CACHE_DURATION) &&
+                       (currentMtime === mediaCache.directoryMtime);
+
+    if (cacheValid) {
+      console.log('✅ Cache hit - retour immédiat');
+      return res.json({ categories: mediaCache.data, cached: true });
+    }
+
+    // Scan et mise à jour du cache
+    console.log('🔄 Cache miss - scan du répertoire média...');
     const categories = await scanMediaDirectory();
+
+    mediaCache = {
+      data: categories,
+      timestamp: now,
+      directoryMtime: currentMtime
+    };
+
     res.json({ categories });
   } catch (error) {
     console.error('Erreur:', error);
@@ -1212,6 +1278,9 @@ app.post('/api/admin/gallery/upload', requireAdmin, galleryMediaUpload.array('me
 
     const { category, folder } = req.body;
 
+    // Invalider le cache après l'upload
+    invalidateMediaCache();
+
     res.json({
       success: true,
       count: req.files.length,
@@ -1247,6 +1316,9 @@ app.delete('/api/admin/gallery/file', requireAdmin, async (req, res) => {
 
     await fs.unlink(fullPath);
 
+    // Invalider le cache après suppression
+    invalidateMediaCache();
+
     res.json({
       success: true,
       message: 'Fichier supprimé avec succès'
@@ -1279,6 +1351,9 @@ app.delete('/api/admin/gallery/category/:categoryName', requireAdmin, async (req
 
     // Supprimer récursivement le dossier et tout son contenu
     await fs.rm(categoryPath, { recursive: true, force: true });
+
+    // Invalider le cache après suppression
+    invalidateMediaCache();
 
     res.json({
       success: true,
@@ -1319,6 +1394,9 @@ app.put('/api/admin/gallery/category/:oldName', requireAdmin, async (req, res) =
     // Renommer le dossier
     await fs.rename(oldPath, newPath);
 
+    // Invalider le cache après renommage
+    invalidateMediaCache();
+
     res.json({
       success: true,
       message: 'Catégorie renommée avec succès'
@@ -1351,6 +1429,9 @@ app.delete('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
 
     // Supprimer récursivement le dossier et tout son contenu
     await fs.rm(folderPath, { recursive: true, force: true });
+
+    // Invalider le cache après suppression
+    invalidateMediaCache();
 
     res.json({
       success: true,
@@ -1389,6 +1470,9 @@ app.put('/api/admin/gallery/folder', requireAdmin, async (req, res) => {
 
     // Renommer le dossier
     await fs.rename(oldPath, newPath);
+
+    // Invalider le cache après renommage
+    invalidateMediaCache();
 
     res.json({
       success: true,
@@ -1704,6 +1788,9 @@ app.post('/api/admin/approve-upload', requireAdmin, async (req, res) => {
     // Déplacer le fichier
     await fs.rename(sourcePath, destPath);
 
+    // Invalider le cache après validation
+    invalidateMediaCache();
+
     console.log(`✅ Fichier validé et déplacé: ${filename}`);
     res.json({ success: true, message: 'Fichier validé avec succès' });
   } catch (error) {
@@ -1772,6 +1859,11 @@ app.post('/api/admin/batch-approve', requireAdmin, async (req, res) => {
         results.failed.push({ filename, error: error.message });
         console.error(`❌ Erreur lors de la validation de ${filename}:`, error);
       }
+    }
+
+    // Invalider le cache si au moins un fichier a été validé
+    if (results.success.length > 0) {
+      invalidateMediaCache();
     }
 
     const message = `${results.success.length} fichier(s) validé(s), ${results.failed.length} échec(s)`;
