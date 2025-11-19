@@ -40,8 +40,10 @@ async function loadMusicTracks() {
 
         if (data.tracks && data.tracks.length > 0) {
             musicTracks = data.tracks;
-            loadTrack(0);
-            currentTrackDisplay.textContent = musicTracks[0].name;
+
+            // Choisir une piste au hasard
+            const randomIndex = Math.floor(Math.random() * musicTracks.length);
+            loadTrack(randomIndex);
 
             // Tenter le démarrage automatique après un court délai si autoplay est activé
             if (musicSettings.autoplay) {
