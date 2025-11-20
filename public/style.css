@@ -663,7 +663,7 @@ body {
 .lightbox-autoplay {
     position: absolute;
     top: 20px;
-    right: 240px;
+    right: 270px;
     padding: 12px 20px;
     background: rgba(26, 26, 26, 0.9);
     border: 1px solid var(--color-gold);
@@ -1302,8 +1302,12 @@ body {
 
     .lightbox-download,
     .lightbox-autoplay {
-        padding: 10px 12px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
         font-size: 0.75rem;
+        justify-content: center;
     }
 
     .lightbox-download {
@@ -1313,13 +1317,19 @@ body {
 
     .lightbox-autoplay {
         top: 10px;
-        right: 130px;
+        right: 110px;
     }
 
     /* Masquer les textes "Télécharger" et "Autoplay" sur mobile */
     .download-text,
     .autoplay-text {
         display: none;
+    }
+
+    .lightbox-download svg,
+    .lightbox-autoplay svg {
+        width: 20px;
+        height: 20px;
     }
 
     .lightbox-zoom-controls {
