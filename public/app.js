@@ -14,6 +14,10 @@ let scrollTop = 0;
 // État de la musique pour gestion vidéo
 let musicWasPlaying = false;
 
+// État de l'autoplay
+let autoplayEnabled = false;
+let autoplayTimer = null;
+
 // Éléments du DOM (lightbox global)
 const lightbox = document.getElementById('lightbox');
 const lightboxImage = document.getElementById('lightboxImage');
@@ -202,6 +206,9 @@ function closeLightbox() {
     lightbox.style.display = 'none';
     document.body.style.overflow = 'auto';
 
+    // Arrêter l'autoplay
+    stopAutoplay();
+
     // Arrêter la vidéo si elle est en cours
     if (lightboxVideo.style.display !== 'none') {
         lightboxVideo.pause();
@@ -234,6 +241,12 @@ function showMedia(index) {
 
     const media = allMedia[index];
     currentMediaIndex = index;
+
+    // Arrêter le timer actuel
+    if (autoplayTimer) {
+        clearTimeout(autoplayTimer);
+        autoplayTimer = null;
+    }
 
     // Réinitialiser le zoom
     resetZoom();
@@ -277,11 +290,16 @@ function showMedia(index) {
         if (lightboxZoomControls) {
             lightboxZoomControls.style.display = 'flex';
         }
+
+        // Démarrer le timer d'autoplay pour les images (4 secondes)
+        if (autoplayEnabled) {
+            startAutoplayTimer();
+        }
     } else {
         lightboxImage.style.display = 'none';
 
-        lightboxVideo.src = media.path;
         lightboxVideo.style.display = 'block';
+        lightboxVideo.src = media.path;
         lightboxVideo.load();
 
         // Lecture automatique des vidéos
@@ -293,6 +311,15 @@ function showMedia(index) {
         if (lightboxZoomControls) {
             lightboxZoomControls.style.display = 'none';
         }
+
+        // Pour l'autoplay, passer à la suivante quand la vidéo se termine
+        if (autoplayEnabled) {
+            lightboxVideo.onended = () => {
+                if (autoplayEnabled && currentMediaIndex < allMedia.length - 1) {
+                    navigateLightbox(1);
+                }
+            };
+        }
     }
 }
 
@@ -301,6 +328,67 @@ function navigateLightbox(direction) {
     const newIndex = currentMediaIndex + direction;
     if (newIndex >= 0 && newIndex < allMedia.length) {
         showMedia(newIndex);
+    }
+}
+
+// ====================
+// AUTOPLAY
+// ====================
+
+function toggleAutoplay() {
+    autoplayEnabled = !autoplayEnabled;
+
+    const autoplayBtn = document.getElementById('autoplayBtn');
+    if (autoplayBtn) {
+        const svgIcon = autoplayBtn.querySelector('svg');
+
+        if (autoplayEnabled) {
+            autoplayBtn.classList.add('active');
+            autoplayBtn.title = 'Arrêter l\'autoplay';
+
+            // Changer l'icône pour stop (carré)
+            if (svgIcon) {
+                svgIcon.innerHTML = '<rect x="6" y="6" width="12" height="12"></rect>';
+            }
+
+            // Démarrer immédiatement si on est sur une image
+            if (allMedia[currentMediaIndex]?.type === 'image') {
+                startAutoplayTimer();
+            }
+        } else {
+            autoplayBtn.classList.remove('active');
+            autoplayBtn.title = 'Démarrer l\'autoplay';
+
+            // Changer l'icône pour play (triangle)
+            if (svgIcon) {
+                svgIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+            }
+
+            stopAutoplay();
+        }
+    }
+}
+
+function startAutoplayTimer() {
+    if (autoplayTimer) {
+        clearTimeout(autoplayTimer);
+    }
+
+    // Timer de 4 secondes pour les images
+    autoplayTimer = setTimeout(() => {
+        if (autoplayEnabled && currentMediaIndex < allMedia.length - 1) {
+            navigateLightbox(1);
+        } else if (autoplayEnabled && currentMediaIndex === allMedia.length - 1) {
+            // Fin de la galerie, arrêter l'autoplay
+            toggleAutoplay();
+        }
+    }, 4000);
+}
+
+function stopAutoplay() {
+    if (autoplayTimer) {
+        clearTimeout(autoplayTimer);
+        autoplayTimer = null;
     }
 }
 
@@ -458,6 +546,10 @@ if (nextMediaBtn) nextMediaBtn.addEventListener('click', () => navigateLightbox(
 if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
 if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
 if (resetZoomBtn) resetZoomBtn.addEventListener('click', resetZoom);
+
+// Event listener pour le bouton autoplay (sera créé dans le HTML)
+const autoplayBtn = document.getElementById('autoplayBtn');
+if (autoplayBtn) autoplayBtn.addEventListener('click', toggleAutoplay);
 
 // Gestion de la musique pendant lecture vidéo
 if (lightboxVideo) {

@@ -528,6 +528,28 @@ async function deleteProvider(providerId) {
     }
 }
 
+async function moveProvider(providerId, direction) {
+    try {
+        const response = await fetch(`/api/admin/providers/${providerId}/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direction })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Recharger l'onglet providers sans notification pour une expérience fluide
+            await loadAdminTab('providers');
+        } else {
+            showNotification(data.error || 'Erreur', 'error');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors du déplacement', 'error');
+    }
+}
+
 /**
  * ======================
  * GESTION DE LA GALERIE

@@ -63,6 +63,42 @@ function initializeEmailTransporter() {
 // Initialiser l'email transporter
 initializeEmailTransporter();
 
+// Fonction pour initialiser les fichiers de données s'ils n'existent pas
+function initializeDataFiles() {
+  // Initialiser providers.json
+  const providersPath = path.join(__dirname, 'providers.json');
+  const providersExamplePath = path.join(__dirname, 'providers.json.example');
+
+  if (!fsSync.existsSync(providersPath)) {
+    if (fsSync.existsSync(providersExamplePath)) {
+      // Copier le fichier exemple
+      fsSync.copyFileSync(providersExamplePath, providersPath);
+      console.log('📄 Fichier providers.json créé depuis providers.json.example');
+    } else {
+      // Créer un fichier vide
+      fsSync.writeFileSync(providersPath, JSON.stringify({ providers: [] }, null, 2));
+      console.log('📄 Fichier providers.json créé (vide)');
+    }
+  }
+
+  // Initialiser guestbook.json (géré par guestbook-manager mais on s'assure qu'il existe)
+  const guestbookPath = path.join(__dirname, 'guestbook.json');
+  const guestbookExamplePath = path.join(__dirname, 'guestbook.json.example');
+
+  if (!fsSync.existsSync(guestbookPath)) {
+    if (fsSync.existsSync(guestbookExamplePath)) {
+      fsSync.copyFileSync(guestbookExamplePath, guestbookPath);
+      console.log('📄 Fichier guestbook.json créé depuis guestbook.json.example');
+    } else {
+      fsSync.writeFileSync(guestbookPath, JSON.stringify({ entries: [] }, null, 2));
+      console.log('📄 Fichier guestbook.json créé (vide)');
+    }
+  }
+}
+
+// Initialiser les fichiers de données
+initializeDataFiles();
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -873,6 +909,14 @@ app.get('/api/providers', requireAuth, (req, res) => {
     const providersPath = path.join(__dirname, 'providers.json');
     const providersData = fsSync.readFileSync(providersPath, 'utf8');
     const providers = JSON.parse(providersData);
+
+    // Trier par ordre si le champ existe, sinon par ordre d'ajout
+    providers.providers.sort((a, b) => {
+      const orderA = a.order !== undefined ? a.order : Number.MAX_SAFE_INTEGER;
+      const orderB = b.order !== undefined ? b.order : Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+
     res.json({ ...providers, enabled: true });
   } catch (error) {
     console.error('Erreur lors de la lecture des prestataires:', error);
@@ -891,6 +935,12 @@ app.post('/api/admin/providers', requireAdmin, async (req, res) => {
 
     // Générer un ID unique
     newProvider.id = newProvider.name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+
+    // Définir l'ordre (à la fin de la liste)
+    const maxOrder = data.providers.length > 0
+      ? Math.max(...data.providers.map(p => p.order !== undefined ? p.order : 0))
+      : -1;
+    newProvider.order = maxOrder + 1;
 
     // Ajouter le nouveau prestataire
     data.providers.push(newProvider);
@@ -971,6 +1021,66 @@ app.delete('/api/admin/providers/:id', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la suppression du prestataire:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du prestataire' });
+  }
+});
+
+// Route pour réorganiser l'ordre des prestataires
+app.post('/api/admin/providers/:id/move', requireAdmin, async (req, res) => {
+  try {
+    const providersPath = path.join(__dirname, 'providers.json');
+    const providersData = fsSync.readFileSync(providersPath, 'utf8');
+    const data = JSON.parse(providersData);
+
+    const providerId = req.params.id;
+    const { direction } = req.body; // 'up' ou 'down'
+
+    // Trouver l'index du prestataire
+    const currentIndex = data.providers.findIndex(p => p.id === providerId);
+
+    if (currentIndex === -1) {
+      return res.status(404).json({ error: 'Prestataire non trouvé' });
+    }
+
+    // Trier par ordre avant de déplacer
+    data.providers.sort((a, b) => {
+      const orderA = a.order !== undefined ? a.order : Number.MAX_SAFE_INTEGER;
+      const orderB = b.order !== undefined ? b.order : Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+
+    // Trouver à nouveau l'index après tri
+    const sortedIndex = data.providers.findIndex(p => p.id === providerId);
+
+    // Vérifier si le déplacement est possible
+    if (direction === 'up' && sortedIndex === 0) {
+      return res.status(400).json({ error: 'Le prestataire est déjà en première position' });
+    }
+
+    if (direction === 'down' && sortedIndex === data.providers.length - 1) {
+      return res.status(400).json({ error: 'Le prestataire est déjà en dernière position' });
+    }
+
+    // Échanger les ordres
+    if (direction === 'up') {
+      const temp = data.providers[sortedIndex - 1].order;
+      data.providers[sortedIndex - 1].order = data.providers[sortedIndex].order;
+      data.providers[sortedIndex].order = temp;
+    } else if (direction === 'down') {
+      const temp = data.providers[sortedIndex + 1].order;
+      data.providers[sortedIndex + 1].order = data.providers[sortedIndex].order;
+      data.providers[sortedIndex].order = temp;
+    }
+
+    // Sauvegarder
+    await fs.writeFile(providersPath, JSON.stringify(data, null, 2), 'utf8');
+
+    res.json({
+      success: true,
+      message: 'Ordre mis à jour avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors du changement d\'ordre:', error);
+    res.status(500).json({ error: 'Erreur lors du changement d\'ordre' });
   }
 });
 
