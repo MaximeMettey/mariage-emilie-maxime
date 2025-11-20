@@ -14,6 +14,16 @@ let scrollTop = 0;
 // État de la musique pour gestion vidéo
 let musicWasPlaying = false;
 
+// État de l'autoplay
+let autoplayEnabled = false;
+let autoplayTimer = null;
+
+// État du swipe
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+
 // Éléments du DOM (lightbox global)
 const lightbox = document.getElementById('lightbox');
 const lightboxImage = document.getElementById('lightboxImage');
@@ -202,6 +212,9 @@ function closeLightbox() {
     lightbox.style.display = 'none';
     document.body.style.overflow = 'auto';
 
+    // Arrêter l'autoplay
+    stopAutoplay();
+
     // Arrêter la vidéo si elle est en cours
     if (lightboxVideo.style.display !== 'none') {
         lightboxVideo.pause();
@@ -234,6 +247,12 @@ function showMedia(index) {
 
     const media = allMedia[index];
     currentMediaIndex = index;
+
+    // Arrêter le timer actuel
+    if (autoplayTimer) {
+        clearTimeout(autoplayTimer);
+        autoplayTimer = null;
+    }
 
     // Réinitialiser le zoom
     resetZoom();
@@ -277,11 +296,16 @@ function showMedia(index) {
         if (lightboxZoomControls) {
             lightboxZoomControls.style.display = 'flex';
         }
+
+        // Démarrer le timer d'autoplay pour les images (4 secondes)
+        if (autoplayEnabled) {
+            startAutoplayTimer();
+        }
     } else {
         lightboxImage.style.display = 'none';
 
-        lightboxVideo.src = media.path;
         lightboxVideo.style.display = 'block';
+        lightboxVideo.src = media.path;
         lightboxVideo.load();
 
         // Lecture automatique des vidéos
@@ -293,6 +317,15 @@ function showMedia(index) {
         if (lightboxZoomControls) {
             lightboxZoomControls.style.display = 'none';
         }
+
+        // Pour l'autoplay, passer à la suivante quand la vidéo se termine
+        if (autoplayEnabled) {
+            lightboxVideo.onended = () => {
+                if (autoplayEnabled && currentMediaIndex < allMedia.length - 1) {
+                    navigateLightbox(1);
+                }
+            };
+        }
     }
 }
 
@@ -302,6 +335,98 @@ function navigateLightbox(direction) {
     if (newIndex >= 0 && newIndex < allMedia.length) {
         showMedia(newIndex);
     }
+}
+
+// ====================
+// AUTOPLAY
+// ====================
+
+function toggleAutoplay() {
+    autoplayEnabled = !autoplayEnabled;
+
+    const autoplayBtn = document.getElementById('autoplayBtn');
+    if (autoplayBtn) {
+        if (autoplayEnabled) {
+            autoplayBtn.classList.add('active');
+            autoplayBtn.title = 'Arrêter l\'autoplay';
+            // Démarrer immédiatement si on est sur une image
+            if (allMedia[currentMediaIndex]?.type === 'image') {
+                startAutoplayTimer();
+            }
+        } else {
+            autoplayBtn.classList.remove('active');
+            autoplayBtn.title = 'Démarrer l\'autoplay';
+            stopAutoplay();
+        }
+    }
+}
+
+function startAutoplayTimer() {
+    if (autoplayTimer) {
+        clearTimeout(autoplayTimer);
+    }
+
+    // Timer de 4 secondes pour les images
+    autoplayTimer = setTimeout(() => {
+        if (autoplayEnabled && currentMediaIndex < allMedia.length - 1) {
+            navigateLightbox(1);
+        } else if (autoplayEnabled && currentMediaIndex === allMedia.length - 1) {
+            // Fin de la galerie, arrêter l'autoplay
+            toggleAutoplay();
+        }
+    }, 4000);
+}
+
+function stopAutoplay() {
+    if (autoplayTimer) {
+        clearTimeout(autoplayTimer);
+        autoplayTimer = null;
+    }
+}
+
+// ====================
+// SWIPE MOBILE
+// ====================
+
+function handleTouchStart(e) {
+    // Ne pas gérer le swipe si on zoom
+    if (zoomLevel > 1) return;
+
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}
+
+function handleTouchMove(e) {
+    // Ne pas gérer le swipe si on zoom
+    if (zoomLevel > 1) return;
+
+    touchEndX = e.touches[0].clientX;
+    touchEndY = e.touches[0].clientY;
+}
+
+function handleTouchEnd() {
+    // Ne pas gérer le swipe si on zoom
+    if (zoomLevel > 1) return;
+
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Swipe horizontal (au moins 50px et plus horizontal que vertical)
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX > 0) {
+            // Swipe vers la droite = image précédente
+            navigateLightbox(-1);
+        } else {
+            // Swipe vers la gauche = image suivante
+            navigateLightbox(1);
+        }
+    }
+
+    // Réinitialiser
+    touchStartX = 0;
+    touchStartY = 0;
+    touchEndX = 0;
+    touchEndY = 0;
 }
 
 // Télécharger le média courant
@@ -458,6 +583,17 @@ if (nextMediaBtn) nextMediaBtn.addEventListener('click', () => navigateLightbox(
 if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
 if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
 if (resetZoomBtn) resetZoomBtn.addEventListener('click', resetZoom);
+
+// Event listener pour le bouton autoplay (sera créé dans le HTML)
+const autoplayBtn = document.getElementById('autoplayBtn');
+if (autoplayBtn) autoplayBtn.addEventListener('click', toggleAutoplay);
+
+// Event listeners pour le swipe mobile
+if (lightbox) {
+    lightbox.addEventListener('touchstart', handleTouchStart, { passive: true });
+    lightbox.addEventListener('touchmove', handleTouchMove, { passive: true });
+    lightbox.addEventListener('touchend', handleTouchEnd);
+}
 
 // Gestion de la musique pendant lecture vidéo
 if (lightboxVideo) {
