@@ -1323,7 +1323,10 @@ body {
     }
 
     .lightbox-zoom-controls {
+        top: auto;
         bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
     }
 
     .zoom-btn {
