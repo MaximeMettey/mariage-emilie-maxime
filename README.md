@@ -132,7 +132,28 @@ Cette commande :
 
 Exemple : `photo.jpg` devient `20251108-143022-photo.jpg`
 
-Le renommage EXIF est également automatiquement exécuté lors de l'optimisation des médias depuis l'interface d'administration.
+### Optimisation des images
+
+Pour optimiser toutes les images (génération des thumbnails et versions web) :
+
+```bash
+npm run optimize
+```
+
+Cette commande :
+- Renomme automatiquement les images avec leur date EXIF (si pas déjà fait)
+- Génère des versions optimisées WebP (max 2048px, qualité 85%)
+- Génère des thumbnails (400x400px)
+- Ignore les fichiers déjà optimisés et à jour
+
+**Important** : Si vous avez déjà des fichiers optimisés et que vous renommez vos images, nettoyez d'abord le cache :
+
+```bash
+npm run clean-cache   # Supprime les fichiers optimisés orphelins
+npm run optimize      # Recrée les optimisations avec les nouveaux noms
+```
+
+L'optimisation peut aussi être lancée depuis l'interface d'administration.
 
 ## Démarrage
 

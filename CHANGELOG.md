@@ -10,15 +10,18 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 ### Ajouté
 - Commande `npm run rename-exif` pour renommer les images avec leur date EXIF
+- Commande `npm run optimize` pour optimiser toutes les images en ligne de commande
 - Renommage automatique des images avec préfixe date/heure (format: YYYYMMDD-HHMMSS-)
 - Détection intelligente pour éviter les doublons de renommage (idempotence)
 - Extraction des dates EXIF (DateTimeOriginal, CreateDate, ModifyDate)
-- Documentation complète du renommage EXIF dans le README
+- Documentation complète du workflow renommage/nettoyage/optimisation dans le README
 
 ### Technique
 - Nouveau module `rename-exif.js` avec fonctions réutilisables
+- Nouveau module `optimize-media.js` pour l'optimisation standalone
 - Intégration du renommage EXIF dans le processus d'optimisation
 - Statistiques détaillées du renommage (total, renommées, déjà renommées, sans EXIF, erreurs)
+- Script `clean-cache.js` existant pour nettoyer les fichiers optimisés orphelins
 
 ## [1.0.0] - 2025-11-10
 
