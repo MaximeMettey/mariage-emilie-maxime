@@ -16,17 +16,39 @@ async function getExifDate(filePath) {
   try {
     const buffer = await fs.readFile(filePath);
     const parser = exifParser.create(buffer);
+
+    // Parse avec les options pour avoir toutes les tags
     const result = parser.parse();
 
-    // Essayer différents champs de date EXIF
+    // Priorité 1 : DateTimeOriginal (36867) - la vraie date de prise de vue
+    // C'est la date originale qui ne change pas même avec retouches
     if (result.tags && result.tags.DateTimeOriginal) {
-      return new Date(result.tags.DateTimeOriginal * 1000);
+      const date = new Date(result.tags.DateTimeOriginal * 1000);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
     }
+
+    // Priorité 2 : DateTime (306) - date/heure du fichier
+    if (result.tags && result.tags.DateTime) {
+      const date = new Date(result.tags.DateTime * 1000);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    // Priorité 3 : CreateDate (tag alternatif)
     if (result.tags && result.tags.CreateDate) {
-      return new Date(result.tags.CreateDate * 1000);
+      const date = new Date(result.tags.CreateDate * 1000);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
     }
-    if (result.tags && result.tags.ModifyDate) {
-      return new Date(result.tags.ModifyDate * 1000);
+
+    // En dernier recours, chercher dans les tags IFD
+    if (result.imageSize) {
+      // L'image a des données EXIF mais pas de date utilisable
+      console.log(`   ⚠️  EXIF trouvé mais pas de date pour: ${path.basename(filePath)}`);
     }
 
     return null;
