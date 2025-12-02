@@ -567,8 +567,12 @@ async function scanMediaDirectory() {
               }
             }
 
-            // Trier les fichiers par ordre alphabétique
-            mediaFiles.sort((a, b) => a.name.localeCompare(b.name));
+            // Trier les fichiers par ordre alphabétique (sensible à la casse pour cohérence)
+            mediaFiles.sort((a, b) => {
+              if (a.name < b.name) return -1;
+              if (a.name > b.name) return 1;
+              return 0;
+            });
 
             if (mediaFiles.length > 0) {
               foldersInCategory.push({
