@@ -2,6 +2,24 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.1.0] - 2025-12-02
+
+### Modifié
+- Changement du tri des médias : utilisation du tri alphabétique au lieu du tri par date
+- L'optimisation des médias inclut désormais le renommage EXIF automatique
+
+### Ajouté
+- Commande `npm run rename-exif` pour renommer les images avec leur date EXIF
+- Renommage automatique des images avec préfixe date/heure (format: YYYYMMDD-HHMMSS-)
+- Détection intelligente pour éviter les doublons de renommage (idempotence)
+- Extraction des dates EXIF (DateTimeOriginal, CreateDate, ModifyDate)
+- Documentation complète du renommage EXIF dans le README
+
+### Technique
+- Nouveau module `rename-exif.js` avec fonctions réutilisables
+- Intégration du renommage EXIF dans le processus d'optimisation
+- Statistiques détaillées du renommage (total, renommées, déjà renommées, sans EXIF, erreurs)
+
 ## [1.0.0] - 2025-11-10
 
 ### Ajouté

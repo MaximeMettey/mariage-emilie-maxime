@@ -9,7 +9,7 @@ Galerie photo élégante pour le mariage d'Émilie et Maxime, célébré le 8 No
 - **Galerie responsive** : Affichage adaptatif sur tous les appareils
 - **Support multimédia** : Photos et vidéos avec lecteur intégré
 - **Téléchargements** : Médias individuels, par dossier ou tous en ZIP
-- **Organisation automatique** : Tri par dossier (alphabétique) puis par date/heure
+- **Organisation automatique** : Tri alphabétique des dossiers et des médias
 - **Lightbox** : Visualisation plein écran avec navigation au clavier
 - **Performances** : Chargement optimisé et lazy loading
 
@@ -109,10 +109,30 @@ media/
 
 **Important** :
 - Les dossiers sont affichés par ordre alphabétique
-- Les médias dans chaque dossier sont triés par date (EXIF pour photos, date de modification pour vidéos)
+- Les médias dans chaque dossier sont triés par ordre alphabétique
+- Pour un tri chronologique, utilisez la commande de renommage EXIF (voir section ci-dessous)
 - Formats supportés :
   - Images : `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.bmp`
   - Vidéos : `.mp4`, `.webm`, `.mov`, `.avi`, `.mkv`
+
+### Renommage automatique avec dates EXIF
+
+Pour trier chronologiquement vos photos, vous pouvez les renommer automatiquement avec leur date de prise de vue :
+
+```bash
+npm run rename-exif
+```
+
+Cette commande :
+- Parcourt toutes les images dans le dossier `media/`
+- Extrait la date de prise de vue des données EXIF
+- Renomme chaque image avec le préfixe `YYYYMMDD-HHMMSS-`
+- Est idempotente : les images déjà renommées sont ignorées
+- N'affecte que les images ayant des données EXIF valides
+
+Exemple : `photo.jpg` devient `20251108-143022-photo.jpg`
+
+Le renommage EXIF est également automatiquement exécuté lors de l'optimisation des médias depuis l'interface d'administration.
 
 ## Démarrage
 

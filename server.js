@@ -14,6 +14,7 @@ const nodemailer = require('nodemailer');
 const AdmZip = require('adm-zip');
 const configManager = require('./config-manager');
 const guestbookManager = require('./guestbook-manager');
+const { renameImagesInDirectory } = require('./rename-exif');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -566,8 +567,8 @@ async function scanMediaDirectory() {
               }
             }
 
-            // Trier les fichiers par date
-            mediaFiles.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // Trier les fichiers par ordre alphabétique
+            mediaFiles.sort((a, b) => a.name.localeCompare(b.name));
 
             if (mediaFiles.length > 0) {
               foldersInCategory.push({
@@ -1487,7 +1488,7 @@ app.post('/api/admin/gallery/upload', requireAdmin, galleryMediaUpload.array('me
   }
 });
 
-// Optimiser tous les médias existants
+// Optimiser tous les médias existants (avec renommage EXIF préalable)
 app.post('/api/admin/optimize-media', requireAdmin, async (req, res) => {
   try {
     let totalImages = 0;
@@ -1495,7 +1496,13 @@ app.post('/api/admin/optimize-media', requireAdmin, async (req, res) => {
     let alreadyOptimized = 0;
     let errors = 0;
 
-    // Scanner récursivement tous les dossiers media
+    // Étape 1 : Renommer les images avec leur date EXIF
+    console.log('🔄 Étape 1/2 : Renommage des images avec dates EXIF...');
+    const renameStats = await renameImagesInDirectory(MEDIA_DIR);
+    console.log(`✅ Renommage terminé : ${renameStats.renamed} images renommées, ${renameStats.alreadyRenamed} déjà renommées, ${renameStats.noExif} sans EXIF`);
+
+    // Étape 2 : Scanner récursivement tous les dossiers media pour optimiser
+    console.log('🔄 Étape 2/2 : Optimisation des médias...');
     async function optimizeDirectory(dir, relativePath = '') {
       const items = await fs.readdir(dir, { withFileTypes: true });
 
@@ -1547,23 +1554,31 @@ app.post('/api/admin/optimize-media', requireAdmin, async (req, res) => {
       }
     }
 
-    console.log('🔄 Début de l\'optimisation des médias existants...');
     await optimizeDirectory(MEDIA_DIR);
 
     // Invalider le cache pour forcer le rechargement avec les nouvelles versions
     invalidateMediaCache();
 
-    const message = `Optimisation terminée : ${optimizedCount} images optimisées, ${alreadyOptimized} déjà optimisées, ${errors} erreurs sur ${totalImages} images totales`;
+    const message = `Traitement terminé : ${renameStats.renamed} images renommées, ${optimizedCount} images optimisées, ${alreadyOptimized} déjà optimisées, ${errors} erreurs sur ${totalImages} images totales`;
     console.log(`✅ ${message}`);
 
     res.json({
       success: true,
       message,
       stats: {
-        total: totalImages,
-        optimized: optimizedCount,
-        alreadyOptimized,
-        errors
+        rename: {
+          total: renameStats.total,
+          renamed: renameStats.renamed,
+          alreadyRenamed: renameStats.alreadyRenamed,
+          noExif: renameStats.noExif,
+          errors: renameStats.errors
+        },
+        optimize: {
+          total: totalImages,
+          optimized: optimizedCount,
+          alreadyOptimized,
+          errors
+        }
       }
     });
   } catch (error) {
