@@ -585,7 +585,11 @@ async function scanMediaDirectory() {
         }
 
         // Trier les dossiers alphabétiquement
-        foldersInCategory.sort((a, b) => a.name.localeCompare(b.name));
+        foldersInCategory.sort((a, b) => {
+          if (a.name < b.name) return -1;
+          if (a.name > b.name) return 1;
+          return 0;
+        });
 
         if (foldersInCategory.length > 0) {
           categories.push({
@@ -597,7 +601,11 @@ async function scanMediaDirectory() {
     }
 
     // Trier les catégories alphabétiquement
-    categories.sort((a, b) => a.category.localeCompare(b.category));
+    categories.sort((a, b) => {
+      if (a.category < b.category) return -1;
+      if (a.category > b.category) return 1;
+      return 0;
+    });
 
   } catch (error) {
     console.error('Erreur lors du scan des médias:', error);
